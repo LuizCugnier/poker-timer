@@ -2,20 +2,26 @@ import 'package:flutter/material.dart';
 
 import '../../logica/validacao.dart';
 import '../../modelos/nivel.dart';
+import '../../theme/tema_relogio.dart';
 import '../componentes.dart';
 
 // Devolve o nível editado, ou null se cancelar.
-Future<Nivel?> editarNivel(BuildContext context, Nivel inicial) {
+Future<Nivel?> editarNivel(
+  BuildContext context,
+  Nivel inicial, {
+  required bool isNovo,
+}) {
   return showDialog<Nivel>(
     context: context,
-    builder: (context) => _DialogoNivel(inicial: inicial),
+    builder: (context) => _DialogoNivel(inicial: inicial, isNovo: isNovo),
   );
 }
 
 class _DialogoNivel extends StatefulWidget {
-  const _DialogoNivel({required this.inicial});
+  const _DialogoNivel({required this.inicial, required this.isNovo});
 
   final Nivel inicial;
+  final bool isNovo;
 
   @override
   State<_DialogoNivel> createState() => _DialogoNivelState();
@@ -61,18 +67,18 @@ class _DialogoNivelState extends State<_DialogoNivel> {
   @override
   Widget build(BuildContext context) {
     final isIntervalo = widget.inicial.isIntervalo;
-    final duracao = CampoNumero(
-      rotulo: 'Duração',
-      sufixo: 'min',
+    final tipo = isIntervalo ? 'intervalo' : 'nível';
+    final duracao = CampoRotulado(
+      rotulo: 'Duração (min)',
       controle: _minutos,
       autofocus: isIntervalo,
       validar: (texto) => validarInteiro(texto, minimo: 1),
     );
 
     return AlertDialog(
-      title: Text(isIntervalo ? 'Intervalo' : 'Nível'),
+      title: Text(widget.isNovo ? 'Novo $tipo' : 'Editar $tipo'),
       content: SizedBox(
-        width: 480,
+        width: EspacosRelogio.larguraDialogoFicha,
         child: Form(
           key: _form,
           child: SingleChildScrollView(
@@ -80,11 +86,14 @@ class _DialogoNivelState extends State<_DialogoNivel> {
                 ? duracao
                 : Column(
                     mainAxisSize: MainAxisSize.min,
+                    spacing: EspacosRelogio.gapGrande,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        spacing: EspacosRelogio.gapGrande,
                         children: [
                           Expanded(
-                            child: CampoNumero(
+                            child: CampoRotulado(
                               rotulo: 'Small blind',
                               controle: _smallBlind,
                               autofocus: true,
@@ -92,9 +101,8 @@ class _DialogoNivelState extends State<_DialogoNivel> {
                                   validarInteiro(texto, minimo: 1),
                             ),
                           ),
-                          const SizedBox(width: 16),
                           Expanded(
-                            child: CampoNumero(
+                            child: CampoRotulado(
                               rotulo: 'Big blind',
                               controle: _bigBlind,
                               validar: (texto) =>
@@ -104,15 +112,16 @@ class _DialogoNivelState extends State<_DialogoNivel> {
                         ],
                       ),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        spacing: EspacosRelogio.gapGrande,
                         children: [
                           Expanded(
-                            child: CampoNumero(
+                            child: CampoRotulado(
                               rotulo: 'Ante',
                               controle: _ante,
                               validar: validarInteiro,
                             ),
                           ),
-                          const SizedBox(width: 16),
                           Expanded(child: duracao),
                         ],
                       ),
@@ -126,7 +135,7 @@ class _DialogoNivelState extends State<_DialogoNivel> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancelar'),
         ),
-        FilledButton(onPressed: _salvar, child: const Text('OK')),
+        FilledButton(onPressed: _salvar, child: const Text('Salvar')),
       ],
     );
   }

@@ -1,96 +1,34 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:poker_timer/dados/repositorio.dart';
 import 'package:poker_timer/logica/avisos.dart';
 import 'package:poker_timer/logica/relogio_torneio.dart';
-import 'package:poker_timer/main.dart';
+import 'package:poker_timer/modelos/configuracao.dart';
 import 'package:poker_timer/modelos/estrutura.dart';
 import 'package:poker_timer/modelos/ficha.dart';
 import 'package:poker_timer/modelos/torneio.dart';
-import 'package:poker_timer/servicos/alarmes.dart';
-import 'package:poker_timer/servicos/sons.dart';
-import 'package:poker_timer/tema.dart';
+import 'package:poker_timer/theme/tema_relogio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class AlarmesFalso implements Alarmes {
-  bool permissoes = true;
-  int pedidosDePermissao = 0;
-  int cancelamentos = 0;
-  Torneio? agendado;
-  List<Duration>? agendadoCom;
-
-  @override
-  Future<void> inicializar() async {}
-
-  @override
-  Future<bool> temPermissoes() async => permissoes;
-
-  @override
-  Future<void> pedirPermissoes() async => pedidosDePermissao++;
-
-  @override
-  Future<void> agendar(
-    Torneio torneio,
-    DateTime agora,
-    List<Duration> antecedencias,
-  ) async {
-    agendado = torneio;
-    agendadoCom = antecedencias;
-  }
-
-  @override
-  Future<void> cancelar() async => cancelamentos++;
-}
-
-class SonsFalso implements Sons {
-  final tocados = <TipoAviso>[];
-
-  @override
-  Future<void> tocar(TipoAviso tipo) async => tocados.add(tipo);
-}
-
-late AlarmesFalso alarmes;
-late SonsFalso sons;
-
-Future<SharedPreferences> abrirApp(
-  WidgetTester tester, {
-  Torneio? salvo,
-  List<Ficha>? fichas,
-  bool permissoes = true,
-}) async {
-  alarmes = AlarmesFalso()..permissoes = permissoes;
-  sons = SonsFalso();
-  tester.view.physicalSize = const Size(2560, 1600);
-  tester.view.devicePixelRatio = 2;
-  addTearDown(tester.view.reset);
-
-  SharedPreferences.setMockInitialValues({
-    if (salvo != null) 'torneio': jsonEncode(salvo.toJson()),
-    if (fichas != null)
-      'fichas': jsonEncode([for (final f in fichas) f.toJson()]),
-  });
-  final prefs = await SharedPreferences.getInstance();
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        repositorioProvider.overrideWithValue(Repositorio(prefs)),
-        alarmesProvider.overrideWithValue(alarmes),
-        sonsProvider.overrideWithValue(sons),
-      ],
-      child: const AppRelogio(),
-    ),
-  );
-  return prefs;
-}
+import 'apoio.dart';
 
 Torneio? salvoEm(SharedPreferences prefs) =>
     Repositorio(prefs).carregarTorneio();
 
 Torneio pausadoEm(Duration decorrido) =>
     Torneio(estrutura: Estrutura.padrao, decorridoAcumulado: decorrido);
+
+Color? corDoTempo(WidgetTester tester) => tester
+    .widget<AnimatedDefaultTextStyle>(
+      find
+          .ancestor(
+            of: find.byKey(const Key('tempo')),
+            matching: find.byType(AnimatedDefaultTextStyle),
+          )
+          .first,
+    )
+    .style
+    .color;
 
 void main() {
   testWidgets('abre no primeiro nível da estrutura padrão, pausado', (
@@ -104,20 +42,20 @@ void main() {
     expect(find.text('Próximo: 50 / 100'), findsOneWidget);
     expect(find.text('Intervalo em 1:20:00'), findsOneWidget);
     expect(find.text('1.000'), findsOneWidget);
-    expect(find.byTooltip('Iniciar'), findsOneWidget);
+    expect(find.text('INICIAR'), findsOneWidget);
   });
 
   testWidgets('iniciar e pausar salvam o torneio', (tester) async {
     final prefs = await abrirApp(tester);
 
-    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.tap(find.text('INICIAR'));
     await tester.pump();
-    expect(find.byTooltip('Pausar'), findsOneWidget);
+    expect(find.text('PAUSAR'), findsOneWidget);
     expect(salvoEm(prefs)!.isRodando, isTrue);
 
-    await tester.tap(find.byTooltip('Pausar'));
+    await tester.tap(find.text('PAUSAR'));
     await tester.pump();
-    expect(find.byTooltip('Iniciar'), findsOneWidget);
+    expect(find.text('INICIAR'), findsOneWidget);
     expect(salvoEm(prefs)!.isRodando, isFalse);
   });
 
@@ -142,12 +80,12 @@ void main() {
     await abrirApp(tester, salvo: pausadoEm(const Duration(minutes: 5)));
     expect(find.text('15:00'), findsOneWidget);
 
-    await tester.tap(find.text('+1 min'));
+    await tester.tap(find.byTooltip('Mais 1 minuto'));
     await tester.pump();
     expect(find.text('16:00'), findsOneWidget);
 
-    await tester.tap(find.text('−1 min'));
-    await tester.tap(find.text('−1 min'));
+    await tester.tap(find.byTooltip('Menos 1 minuto'));
+    await tester.tap(find.byTooltip('Menos 1 minuto'));
     await tester.pump();
     expect(find.text('14:00'), findsOneWidget);
   });
@@ -192,8 +130,7 @@ void main() {
       ),
     );
 
-    final tempo = tester.widget<Text>(find.textContaining(RegExp(r'^00:')));
-    expect(tempo.style!.color, Tema.ultimoMinuto);
+    expect(corDoTempo(tester), CoresRelogio.altoContraste.ultimoMinuto);
   });
 
   testWidgets('ante aparece quando o nível tem ante', (tester) async {
@@ -218,7 +155,7 @@ void main() {
     tester,
   ) async {
     await abrirApp(tester);
-    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.tap(find.text('INICIAR'));
     await tester.pump();
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -234,9 +171,9 @@ void main() {
   testWidgets('primeiro início sem permissão explica e pede', (tester) async {
     await abrirApp(tester, permissoes: false);
 
-    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.tap(find.text('INICIAR'));
     await tester.pumpAndSettle();
-    expect(find.byTooltip('Pausar'), findsOneWidget);
+    expect(find.text('PAUSAR'), findsOneWidget);
     expect(find.textContaining('alarmes exatos'), findsOneWidget);
 
     await tester.tap(find.text('Permitir'));
@@ -247,12 +184,12 @@ void main() {
   testWidgets('"Agora não" segue sem pedir permissão', (tester) async {
     await abrirApp(tester, permissoes: false);
 
-    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.tap(find.text('INICIAR'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Agora não'));
     await tester.pumpAndSettle();
     expect(alarmes.pedidosDePermissao, 0);
-    expect(find.byTooltip('Pausar'), findsOneWidget);
+    expect(find.text('PAUSAR'), findsOneWidget);
   });
 
   testWidgets('retomar um torneio em andamento não pergunta de novo', (
@@ -264,7 +201,7 @@ void main() {
       permissoes: false,
     );
 
-    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.tap(find.text('INICIAR'));
     await tester.pumpAndSettle();
     expect(find.textContaining('alarmes exatos'), findsNothing);
   });
@@ -310,7 +247,7 @@ void main() {
 
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.tap(find.text('INICIAR'));
     await tester.pump();
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
@@ -361,7 +298,7 @@ void main() {
 
     testWidgets('pular nível pelos controles não toca som', (tester) async {
       await abrirApp(tester);
-      await tester.tap(find.byTooltip('Iniciar'));
+      await tester.tap(find.text('INICIAR'));
       await tester.pump(const Duration(milliseconds: 300));
 
       await tester.tap(find.byTooltip('Próximo nível'));
@@ -374,4 +311,126 @@ void main() {
       expect(sons.tocados, isEmpty);
     });
   });
+
+  group('estados da tela', () {
+    testWidgets('pausado mostra o selo e o tempo apagado', (tester) async {
+      await abrirApp(tester, salvo: pausadoEm(const Duration(minutes: 5)));
+      expect(find.text('PAUSADO'), findsOneWidget);
+      expect(corDoTempo(tester), CoresRelogio.altoContraste.pausado);
+
+      await tester.tap(find.text('INICIAR'));
+      await tester.pumpAndSettle();
+      expect(find.text('PAUSADO'), findsNothing);
+      expect(corDoTempo(tester), CoresRelogio.altoContraste.texto);
+    });
+
+    testWidgets('último nível e fim da estrutura', (tester) async {
+      final total = inicioDoNivel(
+        Estrutura.padrao,
+        Estrutura.padrao.niveis.length,
+      );
+      await abrirApp(
+        tester,
+        salvo: pausadoEm(total - const Duration(minutes: 5)),
+      );
+      expect(find.text('Último nível'), findsOneWidget);
+      expect(find.textContaining('Intervalo em'), findsNothing);
+
+      await abrirApp(tester, salvo: pausadoEm(total));
+      await tester.pumpAndSettle();
+      expect(find.text('FIM DA ESTRUTURA'), findsOneWidget);
+      expect(find.text('Fim da estrutura'), findsOneWidget);
+      expect(find.text('00:00'), findsOneWidget);
+
+      // Play desabilitado: tocar não inicia nada.
+      await tester.tap(find.text('INICIAR'));
+      await tester.pump();
+      expect(find.text('PAUSAR'), findsNothing);
+    });
+
+    testWidgets('sem ante, a caixa do ante continua com a mesma altura', (
+      tester,
+    ) async {
+      await abrirApp(tester);
+      final semAnte = tester.getRect(find.text('Próximo: 50 / 100'));
+
+      await abrirApp(
+        tester,
+        salvo: pausadoEm(inicioDoNivel(Estrutura.padrao, 10)),
+      );
+      await tester.pumpAndSettle();
+      final comAnte = tester.getRect(
+        find.text('Próximo: 600 / 1.200 · ante 200'),
+      );
+      expect(comAnte.top, semAnte.top);
+    });
+
+    testWidgets('a confirmação de pular mostra o nível que vem', (
+      tester,
+    ) async {
+      await abrirApp(tester);
+      await tester.tap(find.byTooltip('Próximo nível'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pular para o próximo nível?'), findsOneWidget);
+      expect(
+        find.text(
+          'O nível 1 termina agora e o relógio começa o nível 2: 50 / 100.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('trocar o modo de exibição muda as cores na hora', (
+      tester,
+    ) async {
+      final prefs = await abrirApp(tester);
+      Color fundoAtual() =>
+          tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor!;
+      expect(fundoAtual(), CoresRelogio.altoContraste.fundo);
+
+      await tester.tap(find.byTooltip('Configurações'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mesa de cassino'));
+      await tester.pumpAndSettle();
+      expect(
+        Repositorio(prefs).carregarConfiguracao()!.modo,
+        ModoRelogio.mesaCassino,
+      );
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(fundoAtual(), CoresRelogio.mesaCassino.fundo);
+    });
+
+    testWidgets('abre no modo salvo', (tester) async {
+      await abrirApp(
+        tester,
+        configuracao: const Configuracao(modo: ModoRelogio.mesaCassino),
+      );
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+        CoresRelogio.mesaCassino.fundo,
+      );
+    });
+  });
+
+  testWidgets(
+    'a tela principal escala para ocupar telas maiores que o design',
+    (tester) async {
+      await abrirApp(tester);
+      final noDesign = tester.getRect(find.byKey(const Key('tempo')));
+
+      // Tablet com "Tamanho da tela" reduzido: mais dp, mesma proporção 16:10.
+      tester.view.physicalSize = const Size(1600, 1000);
+      tester.view.devicePixelRatio = 1;
+      await tester.pump();
+      final ampliado = tester.getRect(find.byKey(const Key('tempo')));
+
+      expect(ampliado.height / noDesign.height, closeTo(1.25, 0.01));
+      expect(
+        tester.getRect(find.byType(FittedBox).first),
+        Offset.zero & const Size(1600, 1000),
+      );
+    },
+  );
 }

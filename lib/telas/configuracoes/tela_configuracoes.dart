@@ -3,14 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../logica/formatacao.dart';
 import '../../modelos/configuracao.dart';
-import '../../tema.dart';
+import '../../theme/tema_relogio.dart';
+import '../componentes.dart';
 import '../estrutura/estrutura_notifier.dart';
 import '../estrutura/tela_estrutura.dart';
 import '../fichas/fichas_notifier.dart';
 import '../fichas/tela_fichas.dart';
 import 'configuracao_notifier.dart';
 
-// Menu de configurações: cada item novo do app entra aqui como mais um ListTile.
+// Menu de configurações (ESPECIFICACAO 5.1): cada item novo entra como mais um card.
 class TelaConfiguracoes extends ConsumerWidget {
   const TelaConfiguracoes({super.key});
 
@@ -19,6 +20,7 @@ class TelaConfiguracoes extends ConsumerWidget {
     final estrutura = ref.watch(estruturaProvider);
     final fichas = ref.watch(fichasProvider);
     final configuracao = ref.watch(configuracaoProvider);
+    final notifier = ref.read(configuracaoProvider.notifier);
     final duracaoTotal = estrutura.niveis.fold(
       Duration.zero,
       (soma, nivel) => soma + nivel.duracao,
@@ -30,68 +32,205 @@ class TelaConfiguracoes extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Configurações')),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        children: [
-          ListTile(
-            leading: const Icon(Icons.format_list_numbered),
-            title: const Text('Estrutura de blinds'),
-            subtitle: Text(
-              '${estrutura.niveis.length} níveis · ${formatarTempo(duracaoTotal)}',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => abrir(const TelaEstrutura()),
+      body: ConteudoCentralizado(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(
+            vertical: EspacosRelogio.margemTabela,
           ),
-          ListTile(
-            leading: const Icon(Icons.toll),
-            title: const Text('Fichas'),
-            subtitle: Text(
-              fichas.isEmpty
-                  ? 'Nenhuma ficha'
-                  : fichas.map((f) => formatarValor(f.valor)).join(' · '),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => abrir(const TelaFichas()),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.notifications_active),
-            title: const Text('Avisar antes da troca de nível'),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CardComTitulo(
+              icone: Icons.palette_outlined,
+              titulo: 'Modo de exibição',
+              child: Row(
+                spacing: EspacosRelogio.gapMedio,
                 children: [
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      for (final minutos in Configuracao.opcoesAvisoMinutos)
-                        FilterChip(
-                          label: Text('$minutos min'),
-                          selected: configuracao.avisosMinutos.contains(
-                            minutos,
-                          ),
-                          onSelected: (_) => ref
-                              .read(configuracaoProvider.notifier)
-                              .alternarAviso(minutos),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    configuracao.avisosMinutos.isEmpty
-                        ? 'Nenhum aviso: toca só na troca de nível.'
-                        : 'O som de aviso toca nesses momentos antes de cada '
-                              'troca, além do som da troca.',
-                    style: const TextStyle(color: Tema.textoSecundario),
-                  ),
+                  for (final (modo, icone, rotulo) in const [
+                    (
+                      ModoRelogio.altoContraste,
+                      Icons.contrast,
+                      'Alto contraste',
+                    ),
+                    (
+                      ModoRelogio.mesaCassino,
+                      Icons.casino_outlined,
+                      'Mesa de cassino',
+                    ),
+                  ])
+                    Expanded(
+                      child: _BotaoModo(
+                        icone: icone,
+                        rotulo: rotulo,
+                        isSelecionado: configuracao.modo == modo,
+                        aoTocar: () => notifier.mudarModo(modo),
+                      ),
+                    ),
                 ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: EspacosRelogio.gapCards),
+            _CardNavegacao(
+              icone: Icons.format_list_numbered,
+              titulo: 'Estrutura de blinds',
+              subtitulo: Text(
+                '${estrutura.niveis.length} níveis · '
+                '${formatarTempo(duracaoTotal)}',
+              ),
+              aoTocar: () => abrir(const TelaEstrutura()),
+            ),
+            const SizedBox(height: EspacosRelogio.gapCards),
+            _CardNavegacao(
+              icone: Icons.toll_outlined,
+              titulo: 'Fichas',
+              subtitulo: fichas.isEmpty
+                  ? const Text('Nenhuma ficha')
+                  : Row(
+                      spacing: EspacosRelogio.gapBolinhaMini,
+                      children: [
+                        for (final ficha in fichas)
+                          BolinhaFicha(
+                            cor: ficha.cor,
+                            tamanho: EspacosRelogio.bolinhaMini,
+                            isTracejada: false,
+                          ),
+                        const SizedBox(width: EspacosRelogio.gapPequeno),
+                        Flexible(
+                          child: Text(
+                            fichas
+                                .map((f) => formatarValor(f.valor))
+                                .join(' · '),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+              aoTocar: () => abrir(const TelaFichas()),
+            ),
+            const SizedBox(height: EspacosRelogio.gapCards),
+            _CardComTitulo(
+              icone: Icons.notifications_active_outlined,
+              titulo: 'Avisar antes da troca de nível',
+              child: Wrap(
+                spacing: EspacosRelogio.gapMedio,
+                runSpacing: EspacosRelogio.gapPequeno,
+                children: [
+                  for (final minutos in Configuracao.opcoesAvisoMinutos)
+                    SizedBox(
+                      height: EspacosRelogio.alturaChip,
+                      child: FilterChip(
+                        label: Text('$minutos min'),
+                        selected: configuracao.avisosMinutos.contains(minutos),
+                        onSelected: (_) => notifier.alternarAviso(minutos),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+}
+
+class _CardComTitulo extends StatelessWidget {
+  const _CardComTitulo({
+    required this.icone,
+    required this.titulo,
+    required this.child,
+  });
+
+  final IconData icone;
+  final String titulo;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: EspacosRelogio.paddingCardHorizontal,
+          vertical: EspacosRelogio.paddingCardVertical,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: EspacosRelogio.gapGrande,
+          children: [
+            Row(
+              spacing: EspacosRelogio.gapGrande,
+              children: [
+                Icon(icone, color: tema.listTileTheme.iconColor),
+                Text(titulo, style: tema.listTileTheme.titleTextStyle),
+              ],
+            ),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CardNavegacao extends StatelessWidget {
+  const _CardNavegacao({
+    required this.icone,
+    required this.titulo,
+    required this.subtitulo,
+    required this.aoTocar,
+  });
+
+  final IconData icone;
+  final String titulo;
+  final Widget subtitulo;
+  final VoidCallback aoTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        leading: Icon(icone),
+        title: Text(titulo),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: EspacosRelogio.gapPequeno),
+          child: subtitulo,
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: aoTocar,
+      ),
+    );
+  }
+}
+
+// Opção do modo de exibição: preenchida quando escolhida, contornada quando não.
+class _BotaoModo extends StatelessWidget {
+  const _BotaoModo({
+    required this.icone,
+    required this.rotulo,
+    required this.isSelecionado,
+    required this.aoTocar,
+  });
+
+  final IconData icone;
+  final String rotulo;
+  final bool isSelecionado;
+  final VoidCallback aoTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    const tamanho = Size.fromHeight(EspacosRelogio.alturaSegmento);
+    return isSelecionado
+        ? FilledButton.icon(
+            style: FilledButton.styleFrom(minimumSize: tamanho),
+            onPressed: aoTocar,
+            icon: Icon(icone),
+            label: Text(rotulo),
+          )
+        : OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(minimumSize: tamanho),
+            onPressed: aoTocar,
+            icon: Icon(icone),
+            label: Text(rotulo),
+          );
   }
 }

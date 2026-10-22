@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../logica/formatacao.dart';
 import '../../logica/validacao.dart';
 import '../../modelos/ficha.dart';
-import '../../tema.dart';
+import '../../theme/tema_relogio.dart';
 import '../componentes.dart';
+import '../configuracoes/configuracao_notifier.dart';
 import 'fichas_notifier.dart';
 
+// Editor de fichas (ESPECIFICACAO 5.3). Rascunho local: nada é salvo até tocar em Salvar.
 class TelaFichas extends ConsumerStatefulWidget {
   const TelaFichas({super.key});
 
@@ -15,7 +17,6 @@ class TelaFichas extends ConsumerStatefulWidget {
   ConsumerState<TelaFichas> createState() => _TelaFichasState();
 }
 
-// Rascunho local: nada é salvo até tocar em Salvar.
 class _TelaFichasState extends ConsumerState<TelaFichas> {
   late final _fichas = [...ref.read(fichasProvider)];
   var _isAlterado = false;
@@ -28,7 +29,7 @@ class _TelaFichasState extends ConsumerState<TelaFichas> {
   }
 
   Future<void> _editar(int indice) async {
-    final editada = await _editarFicha(context, _fichas[indice]);
+    final editada = await _editarFicha(context, _fichas[indice], isNova: false);
     if (editada == null) return;
     _mudar(() => _fichas[indice] = editada);
   }
@@ -39,20 +40,9 @@ class _TelaFichasState extends ConsumerState<TelaFichas> {
       cor: coresFicha[_fichas.length % coresFicha.length],
       rotulo: '',
     );
-    final nova = await _editarFicha(context, sugestao);
+    final nova = await _editarFicha(context, sugestao, isNova: true);
     if (nova == null) return;
     _mudar(() => _fichas.add(nova));
-  }
-
-  Future<void> _restaurarPadrao() async {
-    if (!await perguntar(context, 'Trocar todas as fichas pelas padrão?')) {
-      return;
-    }
-    _mudar(() {
-      _fichas
-        ..clear()
-        ..addAll(fichasPadrao);
-    });
   }
 
   void _salvar() {
@@ -63,93 +53,144 @@ class _TelaFichasState extends ConsumerState<TelaFichas> {
     Navigator.pop(context);
   }
 
+  Future<void> _sairSemSalvar() async {
+    if (await confirmar(
+          context,
+          icone: Icons.undo,
+          titulo: 'Sair sem salvar?',
+          texto: 'As alterações nas fichas serão perdidas.',
+          botaoConfirmar: 'Sair',
+          isPerigo: true,
+        ) &&
+        mounted) {
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cores = ref.watch(coresProvider);
+
     return PopScope(
       canPop: !_isAlterado,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        if (await perguntar(
-              context,
-              'Sair sem salvar as alterações?',
-              confirmar: 'Sair',
-            ) &&
-            context.mounted) {
-          Navigator.pop(context);
-        }
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _sairSemSalvar();
       },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Fichas'),
           actions: [
-            TextButton(
-              onPressed: _restaurarPadrao,
-              child: const Text('Restaurar padrão'),
+            FilledButton.icon(
+              onPressed: _salvar,
+              icon: const Icon(Icons.check),
+              label: const Text('Salvar'),
             ),
-            const SizedBox(width: 8),
-            FilledButton(onPressed: _salvar, child: const Text('Salvar')),
-            const SizedBox(width: 16),
+            const SizedBox(width: EspacosRelogio.margemTabela),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          children: [
-            for (final (i, ficha) in _fichas.indexed)
-              ListTile(
-                leading: BolinhaFicha(cor: ficha.cor),
-                title: Text(
-                  formatarValor(ficha.valor),
-                  style: const TextStyle(fontSize: 22),
-                ),
-                subtitle: ficha.rotulo.isEmpty ? null : Text(ficha.rotulo),
-                onTap: () => _editar(i),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Remover',
-                  onPressed: () => _mudar(() => _fichas.removeAt(i)),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Row(
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _adicionar,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Adicionar ficha'),
-                  ),
-                  const Spacer(),
-                  const Text(
-                    'Na mesa, as fichas aparecem em ordem de valor.',
-                    style: TextStyle(color: Tema.textoSecundario),
-                  ),
-                ],
-              ),
+        body: ConteudoCentralizado(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(
+              vertical: EspacosRelogio.margemTabela,
             ),
-          ],
+            children: [
+              for (final (i, ficha) in _fichas.indexed) ...[
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => _editar(i),
+                    child: SizedBox(
+                      height: EspacosRelogio.alturaCardFicha,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: EspacosRelogio.paddingCardHorizontal,
+                        ),
+                        child: Row(
+                          spacing: EspacosRelogio.gapGrande,
+                          children: [
+                            BolinhaFicha(cor: ficha.cor),
+                            Text(
+                              formatarValor(ficha.valor),
+                              style: TiposRelogio.numero(
+                                TiposRelogio.valorFicha,
+                                FontWeight.w700,
+                                cores.texto,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                ficha.rotulo,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: TiposRelogio.nomeFicha,
+                                  fontWeight: FontWeight.w500,
+                                  color: cores.textoSecundario,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.edit_outlined,
+                                color: cores.controles,
+                              ),
+                              tooltip: 'Editar',
+                              onPressed: () => _editar(i),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.delete_outline,
+                                color: cores.controles,
+                              ),
+                              tooltip: 'Remover',
+                              onPressed: () =>
+                                  _mudar(() => _fichas.removeAt(i)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: EspacosRelogio.gapCards),
+              ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _adicionar,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Adicionar ficha'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-Future<Ficha?> _editarFicha(BuildContext context, Ficha inicial) {
+Future<Ficha?> _editarFicha(
+  BuildContext context,
+  Ficha inicial, {
+  required bool isNova,
+}) {
   return showDialog<Ficha>(
     context: context,
-    builder: (context) => _DialogoFicha(inicial: inicial),
+    builder: (context) => _DialogoFicha(inicial: inicial, isNova: isNova),
   );
 }
 
-class _DialogoFicha extends StatefulWidget {
-  const _DialogoFicha({required this.inicial});
+class _DialogoFicha extends ConsumerStatefulWidget {
+  const _DialogoFicha({required this.inicial, required this.isNova});
 
   final Ficha inicial;
+  final bool isNova;
 
   @override
-  State<_DialogoFicha> createState() => _DialogoFichaState();
+  ConsumerState<_DialogoFicha> createState() => _DialogoFichaState();
 }
 
-class _DialogoFichaState extends State<_DialogoFicha> {
+class _DialogoFichaState extends ConsumerState<_DialogoFicha> {
   final _form = GlobalKey<FormState>();
   late final _valor = TextEditingController(text: '${widget.inicial.valor}');
   late final _rotulo = TextEditingController(text: widget.inicial.rotulo);
@@ -176,49 +217,60 @@ class _DialogoFichaState extends State<_DialogoFicha> {
 
   @override
   Widget build(BuildContext context) {
+    final cores = ref.watch(coresProvider);
+    final estiloRotulo = TextStyle(
+      fontSize: TiposRelogio.rotuloCampo,
+      fontWeight: FontWeight.w600,
+      letterSpacing: TiposRelogio.em(TiposRelogio.rotuloCampo, 0.10),
+      color: cores.textoSecundario,
+    );
+
     return AlertDialog(
-      title: const Text('Ficha'),
+      title: Text(widget.isNova ? 'Nova ficha' : 'Editar ficha'),
       content: SizedBox(
-        width: 480,
+        width: EspacosRelogio.larguraDialogoFicha,
         child: Form(
           key: _form,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: EspacosRelogio.gapGrande,
                   children: [
                     Expanded(
-                      child: CampoNumero(
+                      child: CampoRotulado(
                         rotulo: 'Valor',
                         controle: _valor,
                         autofocus: true,
                         validar: (texto) => validarInteiro(texto, minimo: 1),
                       ),
                     ),
-                    const SizedBox(width: 16),
                     Expanded(
-                      child: TextFormField(
-                        controller: _rotulo,
-                        decoration: const InputDecoration(
-                          labelText: 'Nome (opcional)',
-                        ),
+                      child: CampoRotulado(
+                        rotulo: 'Nome (opcional)',
+                        controle: _rotulo,
+                        isNumero: false,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
+                const SizedBox(height: EspacosRelogio.gapGrande),
+                Text('COR', style: estiloRotulo),
+                const SizedBox(height: EspacosRelogio.gapPequeno),
+                GridView.count(
+                  crossAxisCount: EspacosRelogio.colunasCores.toInt(),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   children: [
                     for (final cor in coresFicha)
-                      GestureDetector(
-                        onTap: () => setState(() => _cor = cor),
-                        child: BolinhaFicha(
-                          cor: cor,
-                          isSelecionada: cor == _cor,
-                        ),
+                      _AlvoCor(
+                        cor: cor,
+                        isSelecionada: cor == _cor,
+                        corSelecao: cores.primaria,
+                        aoTocar: () => setState(() => _cor = cor),
                       ),
                   ],
                 ),
@@ -232,8 +284,55 @@ class _DialogoFichaState extends State<_DialogoFicha> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancelar'),
         ),
-        FilledButton(onPressed: _salvar, child: const Text('OK')),
+        FilledButton(onPressed: _salvar, child: const Text('Salvar')),
       ],
+    );
+  }
+}
+
+// Bolinha de 50 dentro de um alvo de 64; a selecionada ganha anel e ✓.
+class _AlvoCor extends StatelessWidget {
+  const _AlvoCor({
+    required this.cor,
+    required this.isSelecionada,
+    required this.corSelecao,
+    required this.aoTocar,
+  });
+
+  final int cor;
+  final bool isSelecionada;
+  final Color corSelecao;
+  final VoidCallback aoTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: aoTocar,
+        child: Container(
+          width: EspacosRelogio.alvoCor,
+          height: EspacosRelogio.alvoCor,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: isSelecionada
+                ? Border.all(
+                    color: corSelecao,
+                    width: EspacosRelogio.anelSelecao,
+                  )
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              BolinhaFicha(cor: cor, isTracejada: false),
+              if (isSelecionada)
+                Icon(Icons.check, color: CoresRelogio.sobre(Color(cor))),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -27,7 +27,8 @@ flutter install                  # instala a release no tablet conectado
 - `wakelock_plus`: tela sempre ligada enquanto o relógio estiver aberto
 - `flutter_local_notifications` + `timezone`: alarmes agendados das trocas de nível
   (funcionam com o app em segundo plano ou com a tela apagada)
-- `audioplayers`: som de troca de nível e aviso de 1 minuto com o app aberto
+- `audioplayers`: som de troca de nível e dos avisos com o app aberto
+- Fonte Inter empacotada em `assets/fonts/` (400 a 800); nunca `google_fonts` nem fonte da internet
 - `shared_preferences` com JSON: estruturas, fichas e o torneio em andamento.
   Trocar por `drift` só se o volume de dados justificar.
 
@@ -43,6 +44,9 @@ com `flutter run --release`; o modo debug não passa pelo R8 e não mostra esse 
 ```
 lib/
   main.dart                 inicialização (orientação, wakelock, notificações, ProviderScope)
+  theme/
+    tema_relogio.dart       TODOS os tokens: CoresRelogio (2 modos), TiposRelogio, EspacosRelogio,
+                            RaiosRelogio, DuracoesRelogio e o ThemeData das telas secundárias
   modelos/
     nivel.dart              Nivel(smallBlind, bigBlind, ante, duracao, isIntervalo)
     estrutura.dart          Estrutura(nome, niveis) + estrutura padrão de home game
@@ -60,14 +64,16 @@ lib/
     alarmes.dart            agenda/cancela notificações das trocas de nível
     sons.dart               som de troca e de 1 minuto com o app aberto
   telas/
-    componentes.dart        confirmação, campo numérico e bolinha de ficha
-    relogio/                tela principal (a da mesa)
-    configuracoes/          menu de configurações (botão ⚙ no relógio); item novo = mais um ListTile
+    componentes.dart        diálogo de confirmação, campo com rótulo, bolinha de ficha
+    relogio/                tela principal (a da mesa) e os providers de "agora" e do estado
+    configuracoes/          menu de configurações (botão ⚙ no relógio); item novo = mais um card;
+                            coresProvider (cores do modo escolhido)
     estrutura/              editor de níveis (uma estrutura salva, usada pelo próximo torneio)
     fichas/                 editor de fichas
 test/
-  modelos_test.dart
-  relogio_torneio_test.dart
+  apoio.dart                dublês (alarmes, sons, "agora" fixo), abrirApp e carregarFontes
+  *_test.dart               lógica, persistência e a tela do relógio
+  golden/                   golden tests 1280×800: 9 estados × 2 modos + 4 telas secundárias × 2
 ```
 
 Os modelos são imutáveis, com `copyWith`, `toJson` e `fromJson` escritos à mão (sem freezed).
@@ -112,17 +118,45 @@ lá dentro), para os testes serem determinísticos. Todo comportamento dessa ló
   `android/app/src/main/res/raw/` (som dos canais de notificação, protegido do R8 por `keep.xml`).
   O som de um canal fica fixo depois de criado; para trocar, mude o id do canal.
 
-## Tela do relógio (layout provisório; o design vem depois)
+## Design
 
-- Horizontal, fundo escuro, tela cheia (modo imersivo), tela sempre ligada.
-- Hierarquia: **tempo restante** enorme > blinds atuais (e ante, se houver) > nível atual e
-  próximo nível > fichas na lateral > tempo até o próximo intervalo.
-- Últimos 60 segundos com destaque visual. Intervalo exibido como "INTERVALO", não como blinds.
-- Controles grandes e discretos: configurações, reiniciar, nível anterior/próximo, ±1 min,
-  iniciar/pausar. Ações que
-  alteram o torneio (pular nível, reiniciar) pedem confirmação, porque alguém pode encostar sem querer.
-- Valores formatados no padrão brasileiro com separador de milhar (1.000, 10.000), sem casas decimais.
-- Cores e tamanhos em um único arquivo de tema, para a troca de design ser fácil.
+Tablet de 10–11" na horizontal (1280×800 dp), tela cheia, lido a ~2 m em luz baixa.
+Referências, que valem mais que qualquer layout anterior:
+- `docs/ESPECIFICACAO.md`: medidas, estados e textos de cada tela;
+- `docs/design/telas/` e `docs/design/telas_secundarias/`: imagens dos dois modos;
+- `docs/design/Relogio.dc.html`: valores de cada estado (constantes `TEMAS`, `BASE`, `ESTADOS`).
+
+Antes de mudar uma tela, leia a seção dela na especificação e a imagem correspondente.
+
+### Regras obrigatórias
+- **Tema em um só lugar.** Cor, tamanho de fonte, espaçamento, raio e duração vêm de
+  `lib/theme/tema_relogio.dart`. Nada de `Color(0x…)`, `fontSize:` ou `EdgeInsets` com número
+  fixo nos widgets; faltou um token, crie-o no arquivo de tema.
+- **Dois modos**, `ModoRelogio.altoContraste` e `ModoRelogio.mesaCassino`, escolhidos em
+  Configurações e salvos em `Configuracao.modo`. A cor sai de `ref.watch(coresProvider)` (ou do
+  `Theme` nas telas secundárias); o widget nunca pergunta "qual é o modo" para escolher uma cor.
+- **Algarismos tabulares em todo número:** `TiposRelogio.numero(...)` ou `TiposRelogio.numeros`.
+- **Ícones:** só Material Icons, na variante `_outlined` quando existir (como no design).
+- **O layout não pula.** Tempo, blinds e ante ficam em caixas de altura fixa (280, 124 e 60);
+  sem ante, a caixa continua lá, vazia. `h:mm:ss` usa `tempoLongo`; blinds com mais de 13
+  caracteres usam `blindsLongo`; os dois dentro de `FittedBox(fit: BoxFit.scaleDown)`.
+- **Desempenho:** nada de `setState` na tela inteira. Cada parte da tela principal lê só o seu
+  pedaço de `estadoRelogioProvider` com `select` (o texto do tempo reconstrói uma vez por
+  segundo). Animações só de cor (`AnimatedContainer`, `AnimatedDefaultTextStyle`); nada de
+  sombra, blur, gradiente animado ou `Opacity` animada. O pulso do último minuto anima só o
+  fundo da área principal.
+- **Luz baixa:** nada de branco puro em áreas grandes.
+- **Toque:** alvos de no mínimo 48 dp; controles da tela principal com 60 dp; play 176×148.
+- **Pular nível, voltar nível e reiniciar** abrem o diálogo de confirmação (`confirmar(...)` em
+  `telas/componentes.dart`), com os valores reais do nível no texto.
+- Valores no padrão brasileiro (1.000, 10.000), sem decimais.
+
+### Golden tests
+- `test/golden/` precisa continuar passando. Mudança visual intencional: `flutter test
+  --update-goldens test/golden`, conferir as imagens novas contra as referências e dizer quais
+  mudaram.
+- Os dados dos goldens repetem os do `Relogio.dc.html` (estruturas de teste montadas para dar
+  exatamente o Nível 11, 14:37 etc.); a estrutura padrão do app não precisa bater com o design.
 
 ## Convenções
 
@@ -130,7 +164,8 @@ lá dentro), para os testes serem determinísticos. Todo comportamento dessa ló
   identificadores (`nivelAtual`, `tempoRestante`). Exceção: booleanos usam o prefixo `is`
   (`isIntervalo`, `isRodando`), não `eh`.
 - Lógica fora dos widgets; widgets só leem o estado e chamam métodos do notifier.
-- Testes de lógica com `flutter_test`. Testes de widget só para a tela do relógio.
+- Testes de lógica com `flutter_test`. Testes de widget para a tela do relógio; as telas
+  secundárias são cobertas pelos golden tests.
 - Comentários só para o que o código sozinho não deixa claro.
 - Depois de mudanças grandes, rodar `flutter analyze` e `flutter test` antes de concluir.
 
@@ -141,6 +176,6 @@ lá dentro), para os testes serem determinísticos. Todo comportamento dessa ló
 3. Tela do relógio funcional com a estrutura padrão
 4. Alarmes, sons e permissões
 5. Editor de estrutura de blinds e editor de fichas
-6. Design final (feito depois com o usuário)
+6. Design final (dois modos, seguindo `docs/ESPECIFICACAO.md`)
 
 Fora do escopo por enquanto: controle de jogadores, rebuys, premiação, sincronização entre aparelhos.

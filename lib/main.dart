@@ -7,8 +7,9 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'dados/repositorio.dart';
 import 'servicos/alarmes.dart';
-import 'tema.dart';
+import 'telas/configuracoes/configuracao_notifier.dart';
 import 'telas/relogio/tela_relogio.dart';
+import 'theme/tema_relogio.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,15 +34,16 @@ Future<void> main() async {
   );
 }
 
-class AppRelogio extends StatelessWidget {
+class AppRelogio extends ConsumerWidget {
   const AppRelogio({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final modo = ref.watch(configuracaoProvider.select((c) => c.modo));
     return MaterialApp(
       title: 'Relógio de Poker',
       debugShowCheckedModeBanner: false,
-      theme: Tema.tema,
+      theme: temaRelogio(modo),
       home: const TelaRelogio(),
     );
   }

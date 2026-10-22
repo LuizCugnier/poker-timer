@@ -2,8 +2,6 @@
 // Fonte: Inter (empacotada em assets/fonts, declarada no pubspec como "Inter").
 // Todos os números usam algarismos tabulares: TiposRelogio.numeros.
 
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 
 enum ModoRelogio { altoContraste, mesaCassino }
@@ -33,6 +31,7 @@ class CoresRelogio {
     required this.playBorda,
     required this.playIcone,
     required this.bordaFicha,
+    required this.rotuloFichas,
   });
 
   final Color fundo; // área principal
@@ -57,10 +56,19 @@ class CoresRelogio {
   final Color playBorda; // contorno do play rodando
   final Color playIcone; // ícone/texto do play rodando
   final Color bordaFicha; // anel externo da bolinha
+  final Color
+  rotuloFichas; // rótulo FICHAS (cinza no contraste, dourado no cassino, como nas imagens)
 
   static const Color tracejadoFichaClara = Color(0x59000000); // preto 35%
   static const Color tracejadoFichaEscura = Color(0xBFFFFFFF); // branco 75%
   static const Color scrim = Color(0xB3000000); // preto 70%
+  static const Color sobreCorClara = Color(
+    0xFF111113,
+  ); // ✓ sobre bolinhas claras
+  static const Color sobreCorEscura = Color(
+    0xFFF2F0EA,
+  ); // ✓ sobre bolinhas escuras
+  static const double opacidadeDesabilitado = 0.35;
 
   static const altoContraste = CoresRelogio(
     fundo: Color(0xFF0B0B0D),
@@ -85,6 +93,7 @@ class CoresRelogio {
     playBorda: Color(0xFF3A3B41),
     playIcone: Color(0xFFBDBAB2),
     bordaFicha: Color(0xFF5C5D63),
+    rotuloFichas: Color(0xFF9A978F),
   );
 
   static const mesaCassino = CoresRelogio(
@@ -110,6 +119,7 @@ class CoresRelogio {
     playBorda: Color(0xFF8C7A4C),
     playIcone: Color(0xFFD9B86C),
     bordaFicha: Color(0xFF8C7A4C),
+    rotuloFichas: Color(0xFFD9B86C),
   );
 
   static CoresRelogio de(ModoRelogio modo) =>
@@ -117,7 +127,13 @@ class CoresRelogio {
 
   /// Cor do tracejado interno da bolinha, conforme a cor escolhida pelo usuário.
   static Color tracejadoPara(Color corFicha) =>
-      corFicha.computeLuminance() > 0.3 ? tracejadoFichaClara : tracejadoFichaEscura;
+      corFicha.computeLuminance() > 0.3
+      ? tracejadoFichaClara
+      : tracejadoFichaEscura;
+
+  /// Cor do ✓ desenhado sobre uma bolinha (preto em fichas claras, branco nas escuras).
+  static Color sobre(Color corFicha) =>
+      corFicha.computeLuminance() > 0.3 ? sobreCorClara : sobreCorEscura;
 }
 
 class TiposRelogio {
@@ -130,7 +146,8 @@ class TiposRelogio {
   static const double tempo = 300; // w800, height 1, letterSpacing -0.02em
   static const double tempoLongo = 232; // h:mm:ss
   static const double blinds = 116; // w700, -0.01em
-  static const double blindsLongo = 104; // > 13 caracteres (use FittedBox.scaleDown)
+  static const double blindsLongo =
+      104; // > 13 caracteres (use FittedBox.scaleDown)
   static const double intervaloTitulo = 104; // w800, +0.12em
   static const double ante = 44; // w600, +0.06em
   static const double nivel = 36; // w800, +0.08em
@@ -151,20 +168,31 @@ class TiposRelogio {
   static const double botao = 20; // w700
   static const double dialogoTitulo = 34; // w700
   static const double dialogoTexto = 24; // w500
+  static const double cabecalhoTabela = 16; // w700, +0.12em
+  static const double linhaTabela = 24; // w600
+  static const double rotuloCampo = 16; // w600, +0.10em
+  static const double campo = 24; // w600
+  static const double valorFicha = 30; // w700
+  static const double nomeFicha = 22; // w500
+  static const double iconeDialogo = 36;
 
   /// Converte o espaçamento em "em" do design para o letterSpacing do Flutter.
   static double em(double tamanho, double fator) => tamanho * fator;
 
-  static TextStyle numero(double tamanho, FontWeight peso, Color cor, {double espacoEm = 0}) =>
-      TextStyle(
-        fontFamily: fonte,
-        fontSize: tamanho,
-        fontWeight: peso,
-        color: cor,
-        height: 1,
-        letterSpacing: em(tamanho, espacoEm),
-        fontFeatures: numeros,
-      );
+  static TextStyle numero(
+    double tamanho,
+    FontWeight peso,
+    Color cor, {
+    double espacoEm = 0,
+  }) => TextStyle(
+    fontFamily: fonte,
+    fontSize: tamanho,
+    fontWeight: peso,
+    color: cor,
+    height: 1,
+    letterSpacing: em(tamanho, espacoEm),
+    fontFeatures: numeros,
+  );
 }
 
 class EspacosRelogio {
@@ -188,6 +216,61 @@ class EspacosRelogio {
   static const double larguraPlay = 176;
   static const double alturaPlay = 148;
   static const double alturaSelo = 52;
+
+  // Tela de referência do design. A tela principal é desenhada nesse tamanho e
+  // escalada para ocupar o tablet inteiro (mesma proporção 16:10).
+  static const double larguraTela = 1280;
+  static const double alturaTela = 800;
+
+  // Detalhes da tela principal
+  static const double gapBolinhaValor = 18;
+  static const double gapPlay = 6;
+  static const double gapSelo = 10;
+  static const double paddingSeloEsquerda = 18;
+  static const double paddingSeloDireita = 24;
+  static const double gapProximo = 16; // filete -> linha do próximo
+  static const double gapControlesTopo = 14;
+  static const double alturaDivisoria = 36;
+  static const double margemDivisoria = 6;
+  static const double filete = 1;
+  static const double bordaLateral = 2;
+  static const double bordaPlay = 2;
+  static const double bordaControle = 1;
+  static const double anelFicha = 2;
+  static const double recuoTracejado = 5;
+  static const double tracejado = 3;
+  static const double tracoTracejado = 6; // comprimento de cada traço
+  static const double vaoTracejado = 4; // espaço entre traços
+
+  // Telas secundárias
+  static const double larguraConteudo = 880;
+  static const double paddingCardVertical = 24;
+  static const double paddingCardHorizontal = 28;
+  static const double gapCards = 16;
+  static const double gapPequeno = 8;
+  static const double gapMedio = 16;
+  static const double gapGrande = 24;
+  static const double margemTabela = 40;
+  static const double alturaCabecalhoTabela = 40;
+  static const double colunaAlca = 56;
+  static const double colunaNivel = 120;
+  static const double colunaRemover = 64;
+  static const double alturaLinha = 58;
+  static const double alturaRodape = 96;
+  static const double alturaCardFicha = 88;
+  static const double bolinhaMini = 20;
+  static const double gapBolinhaMini = 8;
+  static const double alturaChip = 52;
+  static const double alturaSegmento = 64;
+  static const double larguraDialogo = 680;
+  static const double larguraDialogoFicha = 600;
+  static const double paddingDialogo = 40;
+  static const double paddingDialogoBase = 32;
+  static const double circuloIconeDialogo = 64;
+  static const double alturaBotaoDialogo = 68;
+  static const double alvoCor = 64;
+  static const double anelSelecao = 3;
+  static const double colunasCores = 6;
 }
 
 class RaiosRelogio {
@@ -256,6 +339,9 @@ ThemeData temaRelogio(ModoRelogio modo) {
       toolbarHeight: 96,
       elevation: 0,
       scrolledUnderElevation: 0,
+      shape: Border(bottom: BorderSide(color: c.linha)),
+      leadingWidth: 112,
+      titleSpacing: 0,
       titleTextStyle: TextStyle(
         fontFamily: TiposRelogio.fonte,
         fontSize: TiposRelogio.tituloTela,
@@ -267,7 +353,9 @@ ThemeData temaRelogio(ModoRelogio modo) {
       color: c.superficie,
       elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(RaiosRelogio.card)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(RaiosRelogio.card),
+      ),
     ),
     listTileTheme: ListTileThemeData(
       contentPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
@@ -321,8 +409,13 @@ ThemeData temaRelogio(ModoRelogio modo) {
       checkmarkColor: c.naPrimaria,
       side: BorderSide(color: c.bordaControle, width: 2),
       shape: pilula,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      labelStyle: textoBotao.copyWith(color: c.texto),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      labelStyle: textoBotao.copyWith(
+        color: WidgetStateColor.resolveWith(
+          (estados) =>
+              estados.contains(WidgetState.selected) ? c.naPrimaria : c.texto,
+        ),
+      ),
       secondaryLabelStyle: textoBotao.copyWith(color: c.naPrimaria),
     ),
     segmentedButtonTheme: SegmentedButtonThemeData(
@@ -338,7 +431,11 @@ ThemeData temaRelogio(ModoRelogio modo) {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: c.fundo,
-      labelStyle: TextStyle(color: c.textoSecundario, fontSize: 16, fontWeight: FontWeight.w600),
+      labelStyle: TextStyle(
+        color: c.textoSecundario,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(RaiosRelogio.campo),
@@ -352,7 +449,9 @@ ThemeData temaRelogio(ModoRelogio modo) {
     dialogTheme: DialogThemeData(
       backgroundColor: c.superficieAlta,
       barrierColor: CoresRelogio.scrim,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(RaiosRelogio.dialogo)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(RaiosRelogio.dialogo),
+      ),
       titleTextStyle: TextStyle(
         fontFamily: TiposRelogio.fonte,
         fontSize: TiposRelogio.dialogoTitulo,

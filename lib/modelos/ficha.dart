@@ -29,24 +29,24 @@ class Ficha {
 }
 
 const fichasPadrao = [
-  Ficha(valor: 25, cor: 0xFFFFFFFF, rotulo: 'Branca'),
-  Ficha(valor: 100, cor: 0xFFD32F2F, rotulo: 'Vermelha'),
-  Ficha(valor: 500, cor: 0xFF388E3C, rotulo: 'Verde'),
-  Ficha(valor: 1000, cor: 0xFF212121, rotulo: 'Preta'),
+  Ficha(valor: 25, cor: 0xFFF2F0EA, rotulo: 'Branca'),
+  Ficha(valor: 100, cor: 0xFFD23B3B, rotulo: 'Vermelha'),
+  Ficha(valor: 500, cor: 0xFF2E9B5B, rotulo: 'Verde'),
+  Ficha(valor: 1000, cor: 0xFF111113, rotulo: 'Preta'),
 ];
 
-// Cores oferecidas no editor de fichas.
+// Cores oferecidas no editor de fichas, na ordem da grade 6×2 do design.
 const coresFicha = [
-  0xFFFFFFFF, // branca
-  0xFFD32F2F, // vermelha
-  0xFF388E3C, // verde
-  0xFF212121, // preta
-  0xFF1976D2, // azul
-  0xFFFBC02D, // amarela
-  0xFF7B1FA2, // roxa
-  0xFFF57C00, // laranja
-  0xFFEC407A, // rosa
-  0xFF757575, // cinza
-  0xFF6D4C41, // marrom
-  0xFF4FC3F7, // azul-claro
+  0xFFF2F0EA, // branca
+  0xFFD23B3B, // vermelha
+  0xFF2E9B5B, // verde
+  0xFF111113, // preta
+  0xFF2F6FD6, // azul
+  0xFFE8C33A, // amarela
+  0xFFE8782C, // laranja
+  0xFF7B4BC4, // roxa
+  0xFFE0619A, // rosa
+  0xFF8A5A3B, // marrom
+  0xFF8E9196, // cinza
+  0xFF5BC0EB, // azul-claro
 ];
