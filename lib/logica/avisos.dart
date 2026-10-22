@@ -12,42 +12,56 @@ typedef Aviso = ({
   String texto,
 });
 
-// Trocas de nível (e o aviso 1 minuto antes de cada uma) que ainda vão acontecer.
+// Trocas de nível e o fim da estrutura que ainda vão acontecer, cada um com o aviso
+// de 1 minuto antes.
 List<Aviso> avisosFuturos(Torneio torneio, DateTime agora) {
   if (!torneio.isRodando) return [];
 
   final niveis = torneio.estrutura.niveis;
   final decorrido = tempoDecorrido(torneio, agora);
   final avisos = <Aviso>[];
+
+  void avisar(Duration momento, String nome, String titulo, String texto) {
+    final troca = agora.add(momento - decorrido);
+    final umMinutoAntes = troca.subtract(const Duration(minutes: 1));
+    if (umMinutoAntes.isAfter(agora)) {
+      avisos.add((
+        tipo: TipoAviso.umMinuto,
+        quando: umMinutoAntes,
+        titulo: '1 minuto para $nome',
+        texto: texto,
+      ));
+    }
+    if (troca.isAfter(agora)) {
+      avisos.add((
+        tipo: TipoAviso.troca,
+        quando: troca,
+        titulo: titulo,
+        texto: texto,
+      ));
+    }
+  }
+
   var inicio = Duration.zero;
   var numero = 0;
-
-  for (var i = 0; i < niveis.length; i++) {
-    final nivel = niveis[i];
+  for (final (i, nivel) in niveis.indexed) {
     if (!nivel.isIntervalo) numero++;
     if (i > 0) {
-      final troca = agora.add(inicio - decorrido);
-      final umMinutoAntes = troca.subtract(const Duration(minutes: 1));
-      final nome = nivel.isIntervalo ? 'o intervalo' : 'o nível $numero';
-      if (umMinutoAntes.isAfter(agora)) {
-        avisos.add((
-          tipo: TipoAviso.umMinuto,
-          quando: umMinutoAntes,
-          titulo: '1 minuto para $nome',
-          texto: _descrever(nivel),
-        ));
-      }
-      if (troca.isAfter(agora)) {
-        avisos.add((
-          tipo: TipoAviso.troca,
-          quando: troca,
-          titulo: nivel.isIntervalo ? 'INTERVALO' : 'NÍVEL $numero',
-          texto: _descrever(nivel),
-        ));
-      }
+      avisar(
+        inicio,
+        nivel.isIntervalo ? 'o intervalo' : 'o nível $numero',
+        nivel.isIntervalo ? 'INTERVALO' : 'NÍVEL $numero',
+        _descrever(nivel),
+      );
     }
     inicio += nivel.duracao;
   }
+  avisar(
+    inicio,
+    'o fim da estrutura',
+    'FIM DA ESTRUTURA',
+    'O relógio para em 00:00 no último nível',
+  );
   return avisos;
 }
 

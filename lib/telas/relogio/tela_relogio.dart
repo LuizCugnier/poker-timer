@@ -40,7 +40,11 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
     alarmes.cancelar();
     _ciclo = AppLifecycleListener(
       onHide: () => alarmes.agendar(ref.read(torneioProvider), DateTime.now()),
-      onShow: alarmes.cancelar,
+      onShow: () {
+        alarmes.cancelar();
+        // O que mudou enquanto o app estava fora já foi avisado pela notificação.
+        _estadoAnterior = null;
+      },
     );
     _redesenho = Timer.periodic(
       const Duration(milliseconds: 250),
@@ -59,7 +63,14 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
     final torneio = ref.read(torneioProvider);
     final estado = calcularEstado(torneio, DateTime.now());
     final antes = _estadoAnterior;
-    if (antes != null && identical(torneio, _torneioAnterior)) {
+    // Fora da tela quem avisa é a notificação; o Timer pode seguir rodando até o
+    // Android congelar o processo, e tocaria o som em dobro.
+    final isNaTela = !const {
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.detached,
+    }.contains(WidgetsBinding.instance.lifecycleState);
+    if (isNaTela && antes != null && identical(torneio, _torneioAnterior)) {
       final som = somDaTransicao(antes, estado);
       if (som != null) ref.read(sonsProvider).tocar(som);
     }

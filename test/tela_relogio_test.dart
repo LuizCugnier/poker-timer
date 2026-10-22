@@ -39,11 +39,14 @@ class AlarmesFalso implements Alarmes {
 }
 
 class SonsFalso implements Sons {
+  final tocados = <TipoAviso>[];
+
   @override
-  Future<void> tocar(TipoAviso tipo) async {}
+  Future<void> tocar(TipoAviso tipo) async => tocados.add(tipo);
 }
 
 late AlarmesFalso alarmes;
+late SonsFalso sons;
 
 Future<SharedPreferences> abrirApp(
   WidgetTester tester, {
@@ -52,6 +55,7 @@ Future<SharedPreferences> abrirApp(
   bool permissoes = true,
 }) async {
   alarmes = AlarmesFalso()..permissoes = permissoes;
+  sons = SonsFalso();
   tester.view.physicalSize = const Size(2560, 1600);
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
@@ -67,7 +71,7 @@ Future<SharedPreferences> abrirApp(
       overrides: [
         repositorioProvider.overrideWithValue(Repositorio(prefs)),
         alarmesProvider.overrideWithValue(alarmes),
-        sonsProvider.overrideWithValue(SonsFalso()),
+        sonsProvider.overrideWithValue(sons),
       ],
       child: const AppRelogio(),
     ),
@@ -279,5 +283,63 @@ void main() {
     await tester.tap(find.byTooltip('Fichas'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'Fichas'), findsOneWidget);
+  });
+
+  group('sons', () {
+    // O relógio usa DateTime.now(): o teste deixa passar tempo real e depois
+    // avança o Timer de redesenho (que roda no tempo falso do teste).
+    Torneio faltandoUmSegundo() => Torneio(
+      estrutura: Estrutura.padrao,
+      decorridoAcumulado: const Duration(minutes: 19, seconds: 59),
+      rodandoDesde: DateTime.now(),
+    );
+
+    Future<void> esperarATroca(WidgetTester tester) async {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 1300)),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('na tela, a troca de nível toca o som', (tester) async {
+      await abrirApp(tester, salvo: faltandoUmSegundo());
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await esperarATroca(tester);
+      expect(find.text('NÍVEL 2'), findsOneWidget);
+      expect(sons.tocados, [TipoAviso.troca]);
+    });
+
+    testWidgets('fora da tela não toca, nem atrasado ao voltar', (
+      tester,
+    ) async {
+      await abrirApp(tester, salvo: faltandoUmSegundo());
+      await tester.pump(const Duration(milliseconds: 300));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+
+      await esperarATroca(tester);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('NÍVEL 2'), findsOneWidget);
+      expect(sons.tocados, isEmpty);
+    });
+
+    testWidgets('pular nível pelos controles não toca som', (tester) async {
+      await abrirApp(tester);
+      await tester.tap(find.byTooltip('Iniciar'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.byTooltip('Próximo nível'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirmar'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('NÍVEL 2'), findsOneWidget);
+      expect(sons.tocados, isEmpty);
+    });
   });
 }

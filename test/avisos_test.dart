@@ -42,22 +42,29 @@ void main() {
       expect(avisosFuturos(torneio, t0), isEmpty);
     });
 
-    test('do início: aviso de 1 minuto e troca para cada nível seguinte', () {
-      final avisos = avisosFuturos(rodandoDesdeT0(Duration.zero), t0);
+    test(
+      'do início: aviso de 1 minuto e troca para cada nível seguinte e o fim',
+      () {
+        final avisos = avisosFuturos(rodandoDesdeT0(Duration.zero), t0);
 
-      expect(avisos.map((a) => a.tipo), [
-        TipoAviso.umMinuto,
-        TipoAviso.troca,
-        TipoAviso.umMinuto,
-        TipoAviso.troca,
-      ]);
-      expect(avisos.map((a) => a.quando), [
-        t0.add(minutos(9)),
-        t0.add(minutos(10)),
-        t0.add(minutos(14)),
-        t0.add(minutos(15)),
-      ]);
-    });
+        expect(avisos.map((a) => a.tipo), [
+          TipoAviso.umMinuto,
+          TipoAviso.troca,
+          TipoAviso.umMinuto,
+          TipoAviso.troca,
+          TipoAviso.umMinuto,
+          TipoAviso.troca,
+        ]);
+        expect(avisos.map((a) => a.quando), [
+          t0.add(minutos(9)),
+          t0.add(minutos(10)),
+          t0.add(minutos(14)),
+          t0.add(minutos(15)),
+          t0.add(minutos(24)),
+          t0.add(minutos(25)),
+        ]);
+      },
+    );
 
     test('textos dizem o que vem, sem contar intervalos como nível', () {
       final avisos = avisosFuturos(rodandoDesdeT0(Duration.zero), t0);
@@ -68,6 +75,8 @@ void main() {
       expect(avisos[2].titulo, '1 minuto para o nível 2');
       expect(avisos[3].titulo, 'NÍVEL 2');
       expect(avisos[3].texto, '50 / 100 · ante 10');
+      expect(avisos[4].titulo, '1 minuto para o fim da estrutura');
+      expect(avisos[5].titulo, 'FIM DA ESTRUTURA');
     });
 
     test('o que já passou não é agendado', () {
@@ -76,7 +85,7 @@ void main() {
 
       expect(avisos.first.tipo, TipoAviso.troca);
       expect(avisos.first.quando, t0.add(minutos(10)));
-      expect(avisos, hasLength(3));
+      expect(avisos, hasLength(5));
     });
 
     test('conta o tempo acumulado antes de retomar', () {
@@ -85,11 +94,23 @@ void main() {
       expect(avisos.map((a) => a.quando), [
         t0.add(minutos(2)),
         t0.add(minutos(3)),
+        t0.add(minutos(12)),
+        t0.add(minutos(13)),
       ]);
     });
 
-    test('no último nível não há mais avisos', () {
-      expect(avisosFuturos(rodandoDesdeT0(minutos(20)), t0), isEmpty);
+    test('no último nível, só os avisos do fim da estrutura', () {
+      final avisos = avisosFuturos(rodandoDesdeT0(minutos(20)), t0);
+
+      expect(avisos.map((a) => a.quando), [
+        t0.add(minutos(4)),
+        t0.add(minutos(5)),
+      ]);
+      expect(avisos.last.titulo, 'FIM DA ESTRUTURA');
+    });
+
+    test('depois do fim da estrutura não há mais avisos', () {
+      expect(avisosFuturos(rodandoDesdeT0(minutos(25)), t0), isEmpty);
     });
   });
 

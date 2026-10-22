@@ -96,9 +96,11 @@ lá dentro), para os testes serem determinísticos. Todo comportamento dessa ló
 - Com o app na tela, quem avisa é `servicos/sons.dart` (troca de nível e 1 minuto antes),
   detectado entre dois redesenhos por `somDaTransicao`. Nenhuma notificação fica agendada,
   para não aparecer banner sobre o relógio nem som duplicado.
+- Fora da tela o app não toca som (o `Timer` pode seguir rodando até o Android congelar o
+  processo) e, ao voltar, ignora o que mudou enquanto estava fora.
 - Ao sair da tela (`AppLifecycleListener.onHide`): agendar uma notificação para cada troca de
-  nível futura e para o aviso de 1 minuto antes de cada troca (`zonedSchedule`, exato,
-  em UTC). Ao voltar (`onShow`) e ao abrir o app: cancelar tudo.
+  nível futura, para o fim da estrutura e para o aviso de 1 minuto antes de cada um
+  (`zonedSchedule`, exato, em UTC). Ao voltar (`onShow`) e ao abrir o app: cancelar tudo.
 - Permissões: `POST_NOTIFICATIONS` (Android 13+) e alarmes exatos (`SCHEDULE_EXACT_ALARM`);
   pedidas ao iniciar um torneio do zero, com explicação em português, se ainda faltarem.
   Sem alarme exato, agenda em modo inexato.
