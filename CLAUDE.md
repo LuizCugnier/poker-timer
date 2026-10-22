@@ -1,14 +1,9 @@
 # Relógio de Poker · contexto do projeto
 
-App Android (Flutter) para controlar torneios de **home game entre amigos**. Roda em um
-**tablet em pé na mesa, na horizontal**, lido a uns 2 metros de distância por todos os jogadores.
+App Android (Flutter) para controlar torneios de **home game**. Roda em um
+**tablet na mesa, na horizontal**.
 Mostra o tempo restante do nível, os blinds atuais e os próximos, o número do nível e os valores das fichas.
-
-É um projeto separado do Assistente de Poker em Python: não compartilham código.
-
-O usuário fala português e conhece Flutter, mas não Kotlin. Responda em português. Toda a
-interface e as mensagens ficam em português do Brasil. Se algo exigir código nativo
-(Kotlin/Gradle), explique o que foi alterado e por quê.
+Se algo exigir código nativo (Kotlin/Gradle), explique o que foi alterado e por quê.
 
 ## Comandos
 
@@ -73,7 +68,7 @@ lib/
 test/
   apoio.dart                dublês (alarmes, sons, "agora" fixo), abrirApp e carregarFontes
   *_test.dart               lógica, persistência e a tela do relógio
-  golden/                   golden tests 1280×800: 9 estados × 2 modos + 4 telas secundárias × 2
+  golden/                   golden tests 1280×800, só locais (fora do git)
 ```
 
 Os modelos são imutáveis, com `copyWith`, `toJson` e `fromJson` escritos à mão (sem freezed).
@@ -103,6 +98,9 @@ lá dentro), para os testes serem determinísticos. Todo comportamento dessa ló
 
 - Avisos antes da troca: antecedências escolhidas em Configurações (1, 2, 3, 5, 10 min; várias
   ou nenhuma; padrão 1 min). Um aviso só vale se for menor que a duração do nível que termina.
+- Chip "1/2" (`Configuracao.isAvisoMetade`): aviso também na metade de cada nível de jogo
+  (não nos intervalos), calculado pela duração de cada nível. Se coincidir com uma antecedência
+  escolhida (metade de 20 = 10 min), toca uma vez só.
 - Com o app na tela, quem avisa é `servicos/sons.dart` (troca de nível e os avisos antes),
   detectado entre dois redesenhos por `somDaTransicao`. Nenhuma notificação fica agendada,
   para não aparecer banner sobre o relógio nem som duplicado.
@@ -143,8 +141,10 @@ Antes de mudar uma tela, leia a seção dela na especificação e a imagem corre
 - **Desempenho:** nada de `setState` na tela inteira. Cada parte da tela principal lê só o seu
   pedaço de `estadoRelogioProvider` com `select` (o texto do tempo reconstrói uma vez por
   segundo). Animações só de cor (`AnimatedContainer`, `AnimatedDefaultTextStyle`); nada de
-  sombra, blur, gradiente animado ou `Opacity` animada. O pulso do último minuto anima só o
-  fundo da área principal.
+  sombra, blur, gradiente animado ou `Opacity` animada. No último minuto só o tempo fica
+  vermelho; nos últimos 10 s o fundo da área principal pisca uma vez por segundo
+  (`EstadoRelogio.isPiscadaVermelha`, sincronizada com a troca do número). Isso substitui o
+  pulso de 1500 ms do último minuto descrito em `docs/ESPECIFICACAO.md`.
 - **Luz baixa:** nada de branco puro em áreas grandes.
 - **Toque:** alvos de no mínimo 48 dp; controles da tela principal com 60 dp; play 176×148.
 - **Pular nível, voltar nível e reiniciar** abrem o diálogo de confirmação (`confirmar(...)` em
@@ -152,7 +152,8 @@ Antes de mudar uma tela, leia a seção dela na especificação e a imagem corre
 - Valores no padrão brasileiro (1.000, 10.000), sem decimais.
 
 ### Golden tests
-- `test/golden/` precisa continuar passando. Mudança visual intencional: `flutter test
+- `test/golden/` fica só na máquina de desenvolvimento (está no `.gitignore`); num clone novo
+  ele não existe e `flutter test` roda só os demais testes. Onde existir, precisa continuar passando. Mudança visual intencional: `flutter test
   --update-goldens test/golden`, conferir as imagens novas contra as referências e dizer quais
   mudaram.
 - Os dados dos goldens repetem os do `Relogio.dc.html` (estruturas de teste montadas para dar
@@ -178,4 +179,3 @@ Antes de mudar uma tela, leia a seção dela na especificação e a imagem corre
 5. Editor de estrutura de blinds e editor de fichas
 6. Design final (dois modos, seguindo `docs/ESPECIFICACAO.md`)
 
-Fora do escopo por enquanto: controle de jogadores, rebuys, premiação, sincronização entre aparelhos.

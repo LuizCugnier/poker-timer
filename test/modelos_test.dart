@@ -182,6 +182,22 @@ void main() {
       expect(copia.avisosMinutos, [1, 5, 10]);
     });
 
+    test('aviso na metade vai e volta pelo JSON', () {
+      const original = Configuracao(isAvisoMetade: true);
+      final copia = Configuracao.fromJson(idaEVolta(original.toJson()));
+      expect(copia.isAvisoMetade, isTrue);
+    });
+
+    test(
+      'configuração salva antes do aviso na metade abre com ele desligado',
+      () {
+        final copia = Configuracao.fromJson({
+          'avisosMinutos': [1],
+        });
+        expect(copia.isAvisoMetade, isFalse);
+      },
+    );
+
     test('sem avisos também é válido', () {
       const original = Configuracao(avisosMinutos: []);
       final copia = Configuracao.fromJson(idaEVolta(original.toJson()));

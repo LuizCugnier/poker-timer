@@ -43,11 +43,15 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
     final alarmes = ref.read(alarmesProvider);
     alarmes.cancelar();
     _ciclo = AppLifecycleListener(
-      onHide: () => alarmes.agendar(
-        ref.read(torneioProvider),
-        DateTime.now(),
-        ref.read(configuracaoProvider).antecedencias,
-      ),
+      onHide: () {
+        final configuracao = ref.read(configuracaoProvider);
+        alarmes.agendar(
+          ref.read(torneioProvider),
+          DateTime.now(),
+          configuracao.antecedencias,
+          isAvisoMetade: configuracao.isAvisoMetade,
+        );
+      },
       onShow: () {
         alarmes.cancelar();
         // O que mudou enquanto o app estava fora já foi avisado pela notificação.
@@ -79,10 +83,12 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
       AppLifecycleState.detached,
     }.contains(WidgetsBinding.instance.lifecycleState);
     if (isNaTela && antes != null && identical(torneio, _torneioAnterior)) {
+      final configuracao = ref.read(configuracaoProvider);
       final som = somDaTransicao(
         antes,
         estado,
-        ref.read(configuracaoProvider).antecedencias,
+        configuracao.antecedencias,
+        isAvisoMetade: configuracao.isAvisoMetade,
       );
       if (som != null) ref.read(sonsProvider).tocar(som);
     }
@@ -230,48 +236,32 @@ String _destino(Nivel nivel, int numero) => nivel.isIntervalo
     ? 'o intervalo de **${nivel.duracao.inMinutes} minutos**'
     : 'o nível $numero: **${descreverBlinds(nivel)}**';
 
-// Fundo da área principal: pulsa entre `fundo` e `fundoUltimoMinuto` no último
-// minuto (só a cor de um AnimatedContainer, invertendo o alvo ao fim de cada fade).
-class _FundoPrincipal extends ConsumerStatefulWidget {
+// Fundo da área principal: nos últimos 10 s pisca entre `fundo` e `fundoUltimoMinuto`
+// uma vez por segundo (só a cor de um AnimatedContainer).
+class _FundoPrincipal extends ConsumerWidget {
   const _FundoPrincipal({required this.child});
 
   final Widget child;
 
   @override
-  ConsumerState<_FundoPrincipal> createState() => _FundoPrincipalState();
-}
-
-class _FundoPrincipalState extends ConsumerState<_FundoPrincipal> {
-  var _isNoAlvo = true;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cores = ref.watch(coresProvider);
     final isRodando = ref.watch(torneioProvider.select((t) => t.isRodando));
-    final isPulsando =
+    final isVermelho =
         isRodando &&
-        ref.watch(
-          estadoRelogioProvider.select(
-            (e) => e.isUltimoMinuto && !e.isTerminado,
-          ),
-        );
-    if (!isPulsando) _isNoAlvo = true;
+        ref.watch(estadoRelogioProvider.select((e) => e.isPiscadaVermelha));
 
     return AnimatedContainer(
-      duration: isPulsando
-          ? DuracoesRelogio.pulsoUltimoMinuto
-          : DuracoesRelogio.troca,
-      color: isPulsando && _isNoAlvo ? cores.fundoUltimoMinuto : cores.fundo,
-      onEnd: () {
-        if (isPulsando && mounted) setState(() => _isNoAlvo = !_isNoAlvo);
-      },
+      key: const Key('fundoPrincipal'),
+      duration: DuracoesRelogio.piscada,
+      color: isVermelho ? cores.fundoUltimoMinuto : cores.fundo,
       padding: const EdgeInsets.fromLTRB(
         EspacosRelogio.margemLados,
         EspacosRelogio.margemTopo,
         EspacosRelogio.margemLados,
         EspacosRelogio.margemBase,
       ),
-      child: widget.child,
+      child: child,
     );
   }
 }

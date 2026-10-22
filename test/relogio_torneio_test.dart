@@ -144,6 +144,29 @@ void main() {
     });
   });
 
+  group('piscada dos últimos 10 segundos', () {
+    // Primeiro nível: 10 minutos. Tempo restante = 10 min - decorrido.
+    bool piscaCom(Duration restante) =>
+        estadoEm(minutos(10) - restante).isPiscadaVermelha;
+
+    test('antes dos 10 segundos não pisca', () {
+      expect(piscaCom(const Duration(seconds: 30)), isFalse);
+      expect(piscaCom(const Duration(seconds: 10, milliseconds: 600)), isFalse);
+    });
+
+    test('vermelho na primeira metade de cada segundo', () {
+      expect(piscaCom(const Duration(seconds: 9, milliseconds: 900)), isTrue);
+      expect(piscaCom(const Duration(seconds: 9, milliseconds: 500)), isTrue);
+      expect(piscaCom(const Duration(seconds: 9, milliseconds: 400)), isFalse);
+      expect(piscaCom(const Duration(seconds: 9)), isFalse);
+      expect(piscaCom(const Duration(milliseconds: 700)), isTrue);
+    });
+
+    test('no fim do último nível, para de piscar', () {
+      expect(estadoEm(minutos(55)).isPiscadaVermelha, isFalse);
+    });
+  });
+
   group('3. próximo nível e próximo intervalo', () {
     test('próximo nível é o seguinte da lista', () {
       expect(estadoEm(minutos(3)).proximoNivel?.bigBlind, 100);

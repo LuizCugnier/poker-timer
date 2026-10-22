@@ -122,6 +122,15 @@ class TelaConfiguracoes extends ConsumerWidget {
                         onSelected: (_) => notifier.alternarAviso(minutos),
                       ),
                     ),
+                  SizedBox(
+                    height: EspacosRelogio.alturaChip,
+                    child: FilterChip(
+                      label: const Text('1/2'),
+                      tooltip: 'Na metade de cada nível',
+                      selected: configuracao.isAvisoMetade,
+                      onSelected: (_) => notifier.alternarAvisoMetade(),
+                    ),
+                  ),
                 ],
               ),
             ),

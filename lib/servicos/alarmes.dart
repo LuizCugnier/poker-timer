@@ -74,8 +74,9 @@ class Alarmes {
   Future<void> agendar(
     Torneio torneio,
     DateTime agora,
-    List<Duration> antecedencias,
-  ) async {
+    List<Duration> antecedencias, {
+    bool isAvisoMetade = false,
+  }) async {
     await cancelar();
     final exato = await _android?.canScheduleExactNotifications() ?? false;
     final modo = exato
@@ -86,6 +87,7 @@ class Alarmes {
       torneio,
       agora,
       antecedencias,
+      isAvisoMetade: isAvisoMetade,
     ).indexed) {
       // zonedSchedule recusa horários no passado; o agendamento leva alguns ms.
       if (!aviso.quando.isAfter(DateTime.now())) continue;

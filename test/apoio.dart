@@ -21,6 +21,7 @@ class AlarmesFalso implements Alarmes {
   int cancelamentos = 0;
   Torneio? agendado;
   List<Duration>? agendadoCom;
+  bool? agendadoComMetade;
 
   @override
   Future<void> inicializar() async {}
@@ -35,10 +36,12 @@ class AlarmesFalso implements Alarmes {
   Future<void> agendar(
     Torneio torneio,
     DateTime agora,
-    List<Duration> antecedencias,
-  ) async {
+    List<Duration> antecedencias, {
+    bool isAvisoMetade = false,
+  }) async {
     agendado = torneio;
     agendadoCom = antecedencias;
+    agendadoComMetade = isAvisoMetade;
   }
 
   @override

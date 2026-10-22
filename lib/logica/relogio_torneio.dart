@@ -30,6 +30,14 @@ class EstadoRelogio {
   final bool isTerminado;
 
   bool get isUltimoMinuto => tempoRestante <= const Duration(minutes: 1);
+
+  // Últimos 10 s do nível: o fundo pisca no compasso dos segundos, vermelho na
+  // primeira metade de cada um (o número troca junto, porque o tempo é arredondado
+  // para cima).
+  bool get isPiscadaVermelha =>
+      tempoRestante > Duration.zero &&
+      tempoRestante <= const Duration(seconds: 10) &&
+      tempoRestante.inMilliseconds % 1000 >= 500;
 }
 
 Duration tempoDecorrido(Torneio torneio, DateTime agora) {

@@ -287,8 +287,9 @@ class RaiosRelogio {
 class DuracoesRelogio {
   DuracoesRelogio._();
 
-  /// Fade de ida e volta entre `fundo` e `fundoUltimoMinuto` (AnimatedContainer).
-  static const Duration pulsoUltimoMinuto = Duration(milliseconds: 1500);
+  /// Fade de cada piscada entre `fundo` e `fundoUltimoMinuto` nos últimos 10 s
+  /// (uma piscada por segundo: meio segundo vermelho, meio segundo normal).
+  static const Duration piscada = Duration(milliseconds: 150);
 
   /// Troca de cor ao pausar, entrar em intervalo etc. (AnimatedDefaultTextStyle).
   static const Duration troca = Duration(milliseconds: 200);

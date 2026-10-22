@@ -13,13 +13,13 @@ typedef Aviso = ({
 });
 
 // Trocas de nível e o fim da estrutura que ainda vão acontecer, cada um precedido
-// dos avisos com as antecedências configuradas. Um aviso só vale dentro do nível que
-// está terminando (o de 10 minutos não toca antes de um intervalo de 5).
+// dos avisos com as antecedências configuradas (ver _antecedenciasDo).
 List<Aviso> avisosFuturos(
   Torneio torneio,
   DateTime agora,
-  List<Duration> antecedencias,
-) {
+  List<Duration> antecedencias, {
+  bool isAvisoMetade = false,
+}) {
   if (!torneio.isRodando) return [];
 
   final niveis = torneio.estrutura.niveis;
@@ -28,19 +28,23 @@ List<Aviso> avisosFuturos(
 
   void avisar(
     Duration momento,
-    Duration duracaoQueTermina,
+    Nivel queTermina,
     String nome,
     String titulo,
     String texto,
   ) {
     final troca = agora.add(momento - decorrido);
-    for (final antecedencia in antecedencias) {
+    for (final antecedencia in _antecedenciasDo(
+      queTermina,
+      antecedencias,
+      isAvisoMetade,
+    )) {
       final quando = troca.subtract(antecedencia);
-      if (antecedencia < duracaoQueTermina && quando.isAfter(agora)) {
+      if (quando.isAfter(agora)) {
         avisos.add((
           tipo: TipoAviso.aviso,
           quando: quando,
-          titulo: '${_minutos(antecedencia)} para $nome',
+          titulo: '${_antecedencia(antecedencia)} para $nome',
           texto: texto,
         ));
       }
@@ -62,7 +66,7 @@ List<Aviso> avisosFuturos(
     if (i > 0) {
       avisar(
         inicio,
-        niveis[i - 1].duracao,
+        niveis[i - 1],
         nivel.isIntervalo ? 'o intervalo' : 'o nível $numero',
         nivel.isIntervalo ? 'INTERVALO' : 'NÍVEL $numero',
         _descrever(nivel),
@@ -72,7 +76,7 @@ List<Aviso> avisosFuturos(
   }
   avisar(
     inicio,
-    niveis.last.duracao,
+    niveis.last,
     'o fim da estrutura',
     'FIM DA ESTRUTURA',
     'O relógio para em 00:00 no último nível',
@@ -80,8 +84,26 @@ List<Aviso> avisosFuturos(
   return avisos..sort((a, b) => a.quando.compareTo(b.quando));
 }
 
-String _minutos(Duration tempo) =>
-    tempo.inMinutes == 1 ? '1 minuto' : '${tempo.inMinutes} minutos';
+// Quando avisar antes do fim de `nivel`: as antecedências configuradas e, se ligada,
+// a metade do nível (só nos de jogo). Cada uma só vale dentro do próprio nível (o
+// aviso de 10 minutos não toca antes de um intervalo de 5), e repetidas (metade de
+// 20 = 10 minutos) tocam uma vez só.
+Set<Duration> _antecedenciasDo(
+  Nivel nivel,
+  List<Duration> antecedencias,
+  bool isAvisoMetade,
+) {
+  return {
+    ...antecedencias,
+    if (isAvisoMetade && !nivel.isIntervalo) nivel.duracao ~/ 2,
+  }.where((a) => a > Duration.zero && a < nivel.duracao).toSet();
+}
+
+// "5 minutos", "1 minuto" ou, na metade de um nível de 15, "07:30".
+String _antecedencia(Duration tempo) {
+  if (tempo.inSeconds % 60 != 0) return formatarTempo(tempo);
+  return tempo.inMinutes == 1 ? '1 minuto' : '${tempo.inMinutes} minutos';
+}
 
 String _descrever(Nivel nivel) => nivel.isIntervalo
     ? '${nivel.duracao.inMinutes} minutos de pausa'
@@ -91,17 +113,18 @@ String _descrever(Nivel nivel) => nivel.isIntervalo
 TipoAviso? somDaTransicao(
   EstadoRelogio antes,
   EstadoRelogio depois,
-  List<Duration> antecedencias,
-) {
+  List<Duration> antecedencias, {
+  bool isAvisoMetade = false,
+}) {
   if (depois.indiceNivel != antes.indiceNivel ||
       depois.isTerminado && !antes.isTerminado) {
     return TipoAviso.troca;
   }
-  final cruzouUmAviso = antecedencias.any(
-    (antecedencia) =>
-        antecedencia < depois.nivelAtual.duracao &&
-        antes.tempoRestante > antecedencia &&
-        depois.tempoRestante <= antecedencia,
-  );
+  final cruzouUmAviso =
+      _antecedenciasDo(depois.nivelAtual, antecedencias, isAvisoMetade).any(
+        (antecedencia) =>
+            antes.tempoRestante > antecedencia &&
+            depois.tempoRestante <= antecedencia,
+      );
   return cruzouUmAviso ? TipoAviso.aviso : null;
 }

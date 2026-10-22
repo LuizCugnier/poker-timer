@@ -23,6 +23,9 @@ class ConfiguracaoNotifier extends Notifier<Configuracao> {
 
   void mudarModo(ModoRelogio modo) => salvar(state.copyWith(modo: modo));
 
+  void alternarAvisoMetade() =>
+      salvar(state.copyWith(isAvisoMetade: !state.isAvisoMetade));
+
   void alternarAviso(int minutos) {
     final avisos = {...state.avisosMinutos};
     if (!avisos.remove(minutos)) avisos.add(minutos);

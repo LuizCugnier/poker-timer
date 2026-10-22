@@ -200,4 +200,106 @@ void main() {
       expect(som(minutos(25), minutos(26)), isNull);
     });
   });
+
+  group('metade do nível (chip 1/2)', () {
+    test('avisa na metade de cada nível de jogo, não no intervalo', () {
+      final avisos = avisosFuturos(
+        rodandoDesdeT0(Duration.zero),
+        t0,
+        const [],
+        isAvisoMetade: true,
+      );
+
+      expect(avisos.map((a) => (a.quando, a.titulo)), [
+        (t0.add(minutos(5)), '5 minutos para o intervalo'),
+        (t0.add(minutos(10)), 'INTERVALO'),
+        (t0.add(minutos(15)), 'NÍVEL 2'),
+        (t0.add(minutos(20)), '5 minutos para o fim da estrutura'),
+        (t0.add(minutos(25)), 'FIM DA ESTRUTURA'),
+      ]);
+    });
+
+    test('metade igual a uma antecedência escolhida toca uma vez só', () {
+      final soMetade = avisosFuturos(
+        rodandoDesdeT0(Duration.zero),
+        t0,
+        const [],
+        isAvisoMetade: true,
+      );
+      final metadeE5 = avisosFuturos(rodandoDesdeT0(Duration.zero), t0, const [
+        Duration(minutes: 5),
+      ], isAvisoMetade: true);
+      expect(metadeE5.map((a) => a.quando), soMetade.map((a) => a.quando));
+    });
+
+    test('metade junto com o aviso de 1 minuto', () {
+      final avisos = avisosFuturos(
+        rodandoDesdeT0(Duration.zero),
+        t0,
+        umMinuto,
+        isAvisoMetade: true,
+      );
+      expect(avisos.take(3).map((a) => a.quando), [
+        t0.add(minutos(5)),
+        t0.add(minutos(9)),
+        t0.add(minutos(10)),
+      ]);
+    });
+
+    test('nível de duração ímpar avisa no meio exato', () {
+      const quinze = Estrutura(
+        nome: 'Quinze',
+        niveis: [
+          Nivel(smallBlind: 25, bigBlind: 50, duracao: Duration(minutes: 15)),
+          Nivel(smallBlind: 50, bigBlind: 100, duracao: Duration(minutes: 15)),
+        ],
+      );
+      final avisos = avisosFuturos(
+        Torneio(estrutura: quinze, rodandoDesde: t0),
+        t0,
+        const [],
+        isAvisoMetade: true,
+      );
+      expect(avisos.first.quando, t0.add(minutos(7, 30)));
+      expect(avisos.first.titulo, '07:30 para o nível 2');
+    });
+
+    test('desligado, não há aviso na metade', () {
+      final avisos = avisosFuturos(rodandoDesdeT0(Duration.zero), t0, const []);
+      expect(avisos.map((a) => a.tipo), everyElement(TipoAviso.troca));
+    });
+
+    test('com o app aberto, cruzar a metade toca o aviso', () {
+      expect(
+        somDaTransicao(
+          estadoEm(minutos(4, 59)),
+          estadoEm(minutos(5)),
+          const [],
+          isAvisoMetade: true,
+        ),
+        TipoAviso.aviso,
+      );
+      expect(
+        somDaTransicao(
+          estadoEm(minutos(4, 59)),
+          estadoEm(minutos(5)),
+          const [],
+        ),
+        isNull,
+      );
+    });
+
+    test('a metade do intervalo não toca', () {
+      // Intervalo de 10 a 15: a metade seria aos 12:30.
+      expect(
+        somDaTransicao(
+          estadoEm(minutos(12, 29)),
+          estadoEm(minutos(12, 30)),
+          const [],
+          isAvisoMetade: true,
+        ),
+        isNull,
+      );
+    });
+  });
 }

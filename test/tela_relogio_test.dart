@@ -254,6 +254,25 @@ void main() {
     expect(alarmes.agendadoCom, [const Duration(minutes: 5)]);
   });
 
+  testWidgets('o chip 1/2 liga o aviso na metade e vale para os alarmes', (
+    tester,
+  ) async {
+    final prefs = await abrirApp(tester);
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1/2'));
+    await tester.pumpAndSettle();
+    expect(Repositorio(prefs).carregarConfiguracao()!.isAvisoMetade, isTrue);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('INICIAR'));
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    expect(alarmes.agendadoComMetade, isTrue);
+  });
+
   group('sons', () {
     // O relógio usa DateTime.now(): o teste deixa passar tempo real e depois
     // avança o Timer de redesenho (que roda no tempo falso do teste).
@@ -433,4 +452,77 @@ void main() {
       );
     },
   );
+
+  group('piscada vermelha', () {
+    final agora = DateTime(2026, 10, 22, 21);
+
+    // Rodando no primeiro nível da estrutura padrão (20 min) com `restante` no relógio.
+    Torneio faltando(Duration restante) => Torneio(
+      estrutura: Estrutura.padrao,
+      rodandoDesde: agora.subtract(const Duration(minutes: 20) - restante),
+    );
+
+    Color? fundo(WidgetTester tester) =>
+        (tester
+                    .widget<AnimatedContainer>(
+                      find.byKey(const Key('fundoPrincipal')),
+                    )
+                    .decoration
+                as BoxDecoration?)
+            ?.color;
+
+    testWidgets(
+      'no último minuto o tempo fica vermelho, mas o fundo não pisca',
+      (tester) async {
+        await abrirApp(
+          tester,
+          salvo: faltando(const Duration(seconds: 30)),
+          agora: agora,
+        );
+        await tester.pump(DuracoesRelogio.troca);
+        expect(corDoTempo(tester), CoresRelogio.altoContraste.ultimoMinuto);
+        expect(fundo(tester), CoresRelogio.altoContraste.fundo);
+      },
+    );
+
+    testWidgets(
+      'nos últimos 10 segundos o fundo fica vermelho no começo do segundo',
+      (tester) async {
+        await abrirApp(
+          tester,
+          salvo: faltando(const Duration(seconds: 7, milliseconds: 600)),
+          agora: agora,
+        );
+        await tester.pump(DuracoesRelogio.piscada);
+        expect(fundo(tester), CoresRelogio.altoContraste.fundoUltimoMinuto);
+      },
+    );
+
+    testWidgets('e volta ao normal na outra metade do segundo', (tester) async {
+      await abrirApp(
+        tester,
+        salvo: faltando(const Duration(seconds: 7, milliseconds: 300)),
+        agora: agora,
+      );
+      await tester.pump(DuracoesRelogio.piscada);
+      expect(fundo(tester), CoresRelogio.altoContraste.fundo);
+    });
+
+    testWidgets('pausado nos últimos 10 segundos não pisca', (tester) async {
+      await abrirApp(
+        tester,
+        salvo: Torneio(
+          estrutura: Estrutura.padrao,
+          decorridoAcumulado: const Duration(
+            minutes: 19,
+            seconds: 52,
+            milliseconds: 400,
+          ),
+        ),
+        agora: agora,
+      );
+      await tester.pump(DuracoesRelogio.piscada);
+      expect(fundo(tester), CoresRelogio.altoContraste.fundo);
+    });
+  });
 }
