@@ -1,0 +1,155 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:poker_timer/dados/repositorio.dart';
+import 'package:poker_timer/logica/relogio_torneio.dart';
+import 'package:poker_timer/main.dart';
+import 'package:poker_timer/modelos/estrutura.dart';
+import 'package:poker_timer/modelos/torneio.dart';
+import 'package:poker_timer/tema.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<SharedPreferences> abrirApp(
+  WidgetTester tester, {
+  Torneio? salvo,
+}) async {
+  tester.view.physicalSize = const Size(2560, 1600);
+  tester.view.devicePixelRatio = 2;
+  addTearDown(tester.view.reset);
+
+  SharedPreferences.setMockInitialValues({
+    if (salvo != null) 'torneio': jsonEncode(salvo.toJson()),
+  });
+  final prefs = await SharedPreferences.getInstance();
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [repositorioProvider.overrideWithValue(Repositorio(prefs))],
+      child: const AppRelogio(),
+    ),
+  );
+  return prefs;
+}
+
+Torneio? salvoEm(SharedPreferences prefs) =>
+    Repositorio(prefs).carregarTorneio();
+
+Torneio pausadoEm(Duration decorrido) =>
+    Torneio(estrutura: Estrutura.padrao, decorridoAcumulado: decorrido);
+
+void main() {
+  testWidgets('abre no primeiro nível da estrutura padrão, pausado', (
+    tester,
+  ) async {
+    await abrirApp(tester);
+
+    expect(find.text('NÍVEL 1'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
+    expect(find.text('25 / 50'), findsOneWidget);
+    expect(find.text('Próximo: 50 / 100'), findsOneWidget);
+    expect(find.text('Intervalo em 1:20:00'), findsOneWidget);
+    expect(find.text('1.000'), findsOneWidget);
+    expect(find.byTooltip('Iniciar'), findsOneWidget);
+  });
+
+  testWidgets('iniciar e pausar salvam o torneio', (tester) async {
+    final prefs = await abrirApp(tester);
+
+    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.pump();
+    expect(find.byTooltip('Pausar'), findsOneWidget);
+    expect(salvoEm(prefs)!.isRodando, isTrue);
+
+    await tester.tap(find.byTooltip('Pausar'));
+    await tester.pump();
+    expect(find.byTooltip('Iniciar'), findsOneWidget);
+    expect(salvoEm(prefs)!.isRodando, isFalse);
+  });
+
+  testWidgets('avançar nível pede confirmação', (tester) async {
+    await abrirApp(tester);
+
+    await tester.tap(find.byTooltip('Próximo nível'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(find.text('25 / 50'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Próximo nível'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirmar'));
+    await tester.pumpAndSettle();
+    expect(find.text('NÍVEL 2'), findsOneWidget);
+    expect(find.text('50 / 100'), findsOneWidget);
+  });
+
+  testWidgets('±1 minuto não pede confirmação', (tester) async {
+    await abrirApp(tester, salvo: pausadoEm(const Duration(minutes: 5)));
+    expect(find.text('15:00'), findsOneWidget);
+
+    await tester.tap(find.text('+1 min'));
+    await tester.pump();
+    expect(find.text('16:00'), findsOneWidget);
+
+    await tester.tap(find.text('−1 min'));
+    await tester.tap(find.text('−1 min'));
+    await tester.pump();
+    expect(find.text('14:00'), findsOneWidget);
+  });
+
+  testWidgets('reiniciar volta ao começo depois de confirmar', (tester) async {
+    final prefs = await abrirApp(
+      tester,
+      salvo: pausadoEm(const Duration(minutes: 50)),
+    );
+    expect(find.text('NÍVEL 3'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Reiniciar torneio'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirmar'));
+    await tester.pumpAndSettle();
+    expect(find.text('NÍVEL 1'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
+    expect(salvoEm(prefs)!.decorridoAcumulado, Duration.zero);
+  });
+
+  testWidgets('restaura o torneio salvo e mostra o intervalo', (tester) async {
+    final inicioIntervalo = inicioDoNivel(Estrutura.padrao, 4);
+    await abrirApp(
+      tester,
+      salvo: pausadoEm(inicioIntervalo + const Duration(minutes: 2)),
+    );
+
+    expect(find.text('INTERVALO'), findsOneWidget);
+    expect(find.text('08:00'), findsOneWidget);
+    expect(find.textContaining('NÍVEL'), findsNothing);
+    expect(find.text('Próximo: 150 / 300'), findsOneWidget);
+  });
+
+  testWidgets('últimos 60 segundos em destaque', (tester) async {
+    final agora = DateTime.now();
+    await abrirApp(
+      tester,
+      salvo: Torneio(
+        estrutura: Estrutura.padrao,
+        decorridoAcumulado: const Duration(minutes: 19, seconds: 30),
+        rodandoDesde: agora,
+      ),
+    );
+
+    final tempo = tester.widget<Text>(find.textContaining(RegExp(r'^00:')));
+    expect(tempo.style!.color, Tema.ultimoMinuto);
+  });
+
+  testWidgets('ante aparece quando o nível tem ante', (tester) async {
+    await abrirApp(
+      tester,
+      salvo: pausadoEm(inicioDoNivel(Estrutura.padrao, 10)),
+    );
+
+    expect(find.text('500 / 1.000'), findsOneWidget);
+    expect(find.text('ANTE 100'), findsOneWidget);
+    expect(find.text('Próximo: 600 / 1.200 · ante 200'), findsOneWidget);
+  });
+}

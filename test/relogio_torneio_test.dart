@@ -128,6 +128,22 @@ void main() {
     });
   });
 
+  group('número do nível e último minuto', () {
+    test('intervalos não contam no número do nível', () {
+      expect(estadoEm(Duration.zero).numeroNivel, 1);
+      expect(estadoEm(minutos(12)).numeroNivel, 2);
+      expect(estadoEm(minutos(30)).numeroNivel, 3);
+      expect(estadoEm(minutos(50)).numeroNivel, 4);
+    });
+
+    test('último minuto do nível', () {
+      expect(estadoEm(minutos(8, 59)).isUltimoMinuto, isFalse);
+      expect(estadoEm(minutos(9)).isUltimoMinuto, isTrue);
+      expect(estadoEm(minutos(9, 59)).isUltimoMinuto, isTrue);
+      expect(estadoEm(minutos(10)).isUltimoMinuto, isFalse);
+    });
+  });
+
   group('3. próximo nível e próximo intervalo', () {
     test('próximo nível é o seguinte da lista', () {
       expect(estadoEm(minutos(3)).proximoNivel?.bigBlind, 100);

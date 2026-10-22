@@ -5,6 +5,7 @@ import '../modelos/torneio.dart';
 class EstadoRelogio {
   const EstadoRelogio({
     required this.indiceNivel,
+    required this.numeroNivel,
     required this.nivelAtual,
     required this.tempoRestante,
     required this.proximoNivel,
@@ -13,6 +14,9 @@ class EstadoRelogio {
   });
 
   final int indiceNivel;
+
+  // Número exibido na mesa: intervalos não contam ("NÍVEL 5" é o quinto nível de jogo).
+  final int numeroNivel;
   final Nivel nivelAtual;
   final Duration tempoRestante;
 
@@ -24,6 +28,8 @@ class EstadoRelogio {
 
   // Passou do fim do último nível.
   final bool isTerminado;
+
+  bool get isUltimoMinuto => tempoRestante <= const Duration(minutes: 1);
 }
 
 Duration tempoDecorrido(Torneio torneio, DateTime agora) {
@@ -69,6 +75,7 @@ EstadoRelogio calcularEstado(Torneio torneio, DateTime agora) {
 
   return EstadoRelogio(
     indiceNivel: indice,
+    numeroNivel: niveis.take(indice + 1).where((n) => !n.isIntervalo).length,
     nivelAtual: niveis[indice],
     tempoRestante: isTerminado ? Duration.zero : fim - decorrido,
     proximoNivel: indice + 1 < niveis.length ? niveis[indice + 1] : null,
