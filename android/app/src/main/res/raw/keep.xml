@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Impede o R8 de remover, no build de release, recursos que o plugin de notificações usa só pelo nome. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@mipmap/ic_launcher,@raw/troca,@raw/aviso" />

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'dados/repositorio.dart';
+import 'servicos/alarmes.dart';
 import 'tema.dart';
 import 'telas/relogio/tela_relogio.dart';
 
@@ -17,10 +19,15 @@ Future<void> main() async {
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   await WakelockPlus.enable();
   final prefs = await SharedPreferences.getInstance();
+  final alarmes = Alarmes(FlutterLocalNotificationsPlugin());
+  await alarmes.inicializar();
 
   runApp(
     ProviderScope(
-      overrides: [repositorioProvider.overrideWithValue(Repositorio(prefs))],
+      overrides: [
+        repositorioProvider.overrideWithValue(Repositorio(prefs)),
+        alarmesProvider.overrideWithValue(alarmes),
+      ],
       child: const AppRelogio(),
     ),
   );

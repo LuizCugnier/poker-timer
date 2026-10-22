@@ -45,11 +45,13 @@ lib/
     torneio.dart            estado persistido do torneio (ver "Regra do relógio")
   logica/
     relogio_torneio.dart    funções puras: dado o torneio e "agora", calcula o estado exibido
+    avisos.dart             avisos a agendar e som de cada transição (funções puras)
+    formatacao.dart         valores (1.000) e tempo (mm:ss)
   dados/
     repositorio.dart        salvar/carregar JSON no shared_preferences
   servicos/
     alarmes.dart            agenda/cancela notificações das trocas de nível
-    sons.dart
+    sons.dart               som de troca e de 1 minuto com o app aberto
   telas/
     relogio/                tela principal (a da mesa)
     estrutura/              editor de níveis
@@ -84,13 +86,18 @@ lá dentro), para os testes serem determinísticos. Todo comportamento dessa ló
 
 ## Alarmes
 
-- Ao iniciar ou retomar: cancelar tudo e agendar uma notificação para cada troca de nível
-  futura e para o aviso de 1 minuto antes de cada troca (`zonedSchedule`, exato).
-- Ao pausar, pular nível ou ajustar tempo: cancelar e reagendar.
+- Com o app na tela, quem avisa é `servicos/sons.dart` (troca de nível e 1 minuto antes),
+  detectado entre dois redesenhos por `somDaTransicao`. Nenhuma notificação fica agendada,
+  para não aparecer banner sobre o relógio nem som duplicado.
+- Ao sair da tela (`AppLifecycleListener.onHide`): agendar uma notificação para cada troca de
+  nível futura e para o aviso de 1 minuto antes de cada troca (`zonedSchedule`, exato,
+  em UTC). Ao voltar (`onShow`) e ao abrir o app: cancelar tudo.
 - Permissões: `POST_NOTIFICATIONS` (Android 13+) e alarmes exatos (`SCHEDULE_EXACT_ALARM`);
-  pedir na primeira vez que o torneio for iniciado, com explicação em português.
-- O `flutter_local_notifications` exige core library desugaring no
-  `android/app/build.gradle.kts`.
+  pedidas ao iniciar um torneio do zero, com explicação em português, se ainda faltarem.
+  Sem alarme exato, agenda em modo inexato.
+- Os sons existem em dois lugares: `assets/sons/` (audioplayers) e
+  `android/app/src/main/res/raw/` (som dos canais de notificação, protegido do R8 por `keep.xml`).
+  O som de um canal fica fixo depois de criado; para trocar, mude o id do canal.
 
 ## Tela do relógio (layout provisório; o design vem depois)
 

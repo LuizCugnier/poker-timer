@@ -4,17 +4,52 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:poker_timer/dados/repositorio.dart';
+import 'package:poker_timer/logica/avisos.dart';
 import 'package:poker_timer/logica/relogio_torneio.dart';
 import 'package:poker_timer/main.dart';
 import 'package:poker_timer/modelos/estrutura.dart';
 import 'package:poker_timer/modelos/torneio.dart';
+import 'package:poker_timer/servicos/alarmes.dart';
+import 'package:poker_timer/servicos/sons.dart';
 import 'package:poker_timer/tema.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class AlarmesFalso implements Alarmes {
+  bool permissoes = true;
+  int pedidosDePermissao = 0;
+  int cancelamentos = 0;
+  Torneio? agendado;
+
+  @override
+  Future<void> inicializar() async {}
+
+  @override
+  Future<bool> temPermissoes() async => permissoes;
+
+  @override
+  Future<void> pedirPermissoes() async => pedidosDePermissao++;
+
+  @override
+  Future<void> agendar(Torneio torneio, DateTime agora) async =>
+      agendado = torneio;
+
+  @override
+  Future<void> cancelar() async => cancelamentos++;
+}
+
+class SonsFalso implements Sons {
+  @override
+  Future<void> tocar(TipoAviso tipo) async {}
+}
+
+late AlarmesFalso alarmes;
 
 Future<SharedPreferences> abrirApp(
   WidgetTester tester, {
   Torneio? salvo,
+  bool permissoes = true,
 }) async {
+  alarmes = AlarmesFalso()..permissoes = permissoes;
   tester.view.physicalSize = const Size(2560, 1600);
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
@@ -25,7 +60,11 @@ Future<SharedPreferences> abrirApp(
   final prefs = await SharedPreferences.getInstance();
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [repositorioProvider.overrideWithValue(Repositorio(prefs))],
+      overrides: [
+        repositorioProvider.overrideWithValue(Repositorio(prefs)),
+        alarmesProvider.overrideWithValue(alarmes),
+        sonsProvider.overrideWithValue(SonsFalso()),
+      ],
       child: const AppRelogio(),
     ),
   );
@@ -151,5 +190,67 @@ void main() {
     expect(find.text('500 / 1.000'), findsOneWidget);
     expect(find.text('ANTE 100'), findsOneWidget);
     expect(find.text('Próximo: 600 / 1.200 · ante 200'), findsOneWidget);
+  });
+
+  testWidgets('ao abrir, cancela alarmes pendentes da última sessão', (
+    tester,
+  ) async {
+    await abrirApp(tester);
+    expect(alarmes.cancelamentos, 1);
+  });
+
+  testWidgets('em segundo plano agenda os alarmes; ao voltar, cancela', (
+    tester,
+  ) async {
+    await abrirApp(tester);
+    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.pump();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    expect(alarmes.agendado?.isRodando, isTrue);
+
+    final antes = alarmes.cancelamentos;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    expect(alarmes.cancelamentos, antes + 1);
+  });
+
+  testWidgets('primeiro início sem permissão explica e pede', (tester) async {
+    await abrirApp(tester, permissoes: false);
+
+    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Pausar'), findsOneWidget);
+    expect(find.textContaining('alarmes exatos'), findsOneWidget);
+
+    await tester.tap(find.text('Permitir'));
+    await tester.pumpAndSettle();
+    expect(alarmes.pedidosDePermissao, 1);
+  });
+
+  testWidgets('"Agora não" segue sem pedir permissão', (tester) async {
+    await abrirApp(tester, permissoes: false);
+
+    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Agora não'));
+    await tester.pumpAndSettle();
+    expect(alarmes.pedidosDePermissao, 0);
+    expect(find.byTooltip('Pausar'), findsOneWidget);
+  });
+
+  testWidgets('retomar um torneio em andamento não pergunta de novo', (
+    tester,
+  ) async {
+    await abrirApp(
+      tester,
+      salvo: pausadoEm(const Duration(minutes: 5)),
+      permissoes: false,
+    );
+
+    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('alarmes exatos'), findsNothing);
   });
 }

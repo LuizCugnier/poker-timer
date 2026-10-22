@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../logica/avisos.dart';
 import '../../logica/formatacao.dart';
 import '../../logica/relogio_torneio.dart';
 import '../../modelos/ficha.dart';
+import '../../modelos/torneio.dart';
+import '../../servicos/alarmes.dart';
+import '../../servicos/sons.dart';
 import '../../tema.dart';
 import 'torneio_notifier.dart';
 
@@ -19,40 +23,93 @@ class TelaRelogio extends ConsumerStatefulWidget {
 class _TelaRelogioState extends ConsumerState<TelaRelogio> {
   // Só redesenha; o tempo vem sempre de calcularEstado(torneio, agora).
   late final Timer _redesenho;
+  late final AppLifecycleListener _ciclo;
+
+  // Para tocar o som só quando o nível muda sozinho, não por um toque nos controles.
+  Torneio? _torneioAnterior;
+  EstadoRelogio? _estadoAnterior;
 
   @override
   void initState() {
     super.initState();
+    final alarmes = ref.read(alarmesProvider);
+    alarmes.cancelar();
+    _ciclo = AppLifecycleListener(
+      onHide: () => alarmes.agendar(ref.read(torneioProvider), DateTime.now()),
+      onShow: alarmes.cancelar,
+    );
     _redesenho = Timer.periodic(
       const Duration(milliseconds: 250),
-      (_) => setState(() {}),
+      (_) => _aoRedesenhar(),
     );
   }
 
   @override
   void dispose() {
     _redesenho.cancel();
+    _ciclo.dispose();
     super.dispose();
   }
 
-  Future<void> _confirmar(String pergunta, VoidCallback acao) async {
-    final confirmado = await showDialog<bool>(
+  void _aoRedesenhar() {
+    final torneio = ref.read(torneioProvider);
+    final estado = calcularEstado(torneio, DateTime.now());
+    final antes = _estadoAnterior;
+    if (antes != null && identical(torneio, _torneioAnterior)) {
+      final som = somDaTransicao(antes, estado);
+      if (som != null) ref.read(sonsProvider).tocar(som);
+    }
+    _torneioAnterior = torneio;
+    _estadoAnterior = estado;
+    setState(() {});
+  }
+
+  Future<bool> _perguntar(
+    String pergunta, {
+    String confirmar = 'Confirmar',
+    String cancelar = 'Cancelar',
+  }) async {
+    final resposta = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         content: Text(pergunta, style: const TextStyle(fontSize: 24)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(cancelar),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirmar'),
+            child: Text(confirmar),
           ),
         ],
       ),
     );
-    if (confirmado == true && mounted) acao();
+    return resposta == true && mounted;
+  }
+
+  Future<void> _confirmar(String pergunta, VoidCallback acao) async {
+    if (await _perguntar(pergunta)) acao();
+  }
+
+  Future<void> _iniciarOuPausar() async {
+    final torneio = ref.read(torneioProvider);
+    final isComeco =
+        !torneio.isRodando && torneio.decorridoAcumulado == Duration.zero;
+    ref.read(torneioProvider.notifier).iniciarOuPausar();
+
+    final alarmes = ref.read(alarmesProvider);
+    if (!isComeco || await alarmes.temPermissoes() || !mounted) return;
+    final permitir = await _perguntar(
+      'Para tocar o alarme da troca de nível com a tela apagada ou com o app '
+      'em segundo plano, o Relógio de Poker precisa enviar notificações e '
+      'agendar alarmes exatos.\n\n'
+      'Na próxima tela, permita as notificações. Se abrir "Alarmes e '
+      'lembretes", ative a opção e volte para o app.',
+      confirmar: 'Permitir',
+      cancelar: 'Agora não',
+    );
+    if (permitir) await alarmes.pedirPermissoes();
   }
 
   @override
@@ -83,7 +140,7 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
                     const SizedBox(height: 8),
                     _Controles(
                       isRodando: torneio.isRodando,
-                      aoIniciarOuPausar: notifier.iniciarOuPausar,
+                      aoIniciarOuPausar: _iniciarOuPausar,
                       aoVoltar: () => _confirmar(
                         'Voltar para o nível anterior?',
                         notifier.voltarNivel,
