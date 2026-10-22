@@ -8,6 +8,7 @@ import 'package:poker_timer/logica/avisos.dart';
 import 'package:poker_timer/logica/relogio_torneio.dart';
 import 'package:poker_timer/main.dart';
 import 'package:poker_timer/modelos/estrutura.dart';
+import 'package:poker_timer/modelos/ficha.dart';
 import 'package:poker_timer/modelos/torneio.dart';
 import 'package:poker_timer/servicos/alarmes.dart';
 import 'package:poker_timer/servicos/sons.dart';
@@ -47,6 +48,7 @@ late AlarmesFalso alarmes;
 Future<SharedPreferences> abrirApp(
   WidgetTester tester, {
   Torneio? salvo,
+  List<Ficha>? fichas,
   bool permissoes = true,
 }) async {
   alarmes = AlarmesFalso()..permissoes = permissoes;
@@ -56,6 +58,8 @@ Future<SharedPreferences> abrirApp(
 
   SharedPreferences.setMockInitialValues({
     if (salvo != null) 'torneio': jsonEncode(salvo.toJson()),
+    if (fichas != null)
+      'fichas': jsonEncode([for (final f in fichas) f.toJson()]),
   });
   final prefs = await SharedPreferences.getInstance();
   await tester.pumpWidget(
@@ -252,5 +256,28 @@ void main() {
     await tester.tap(find.byTooltip('Iniciar'));
     await tester.pumpAndSettle();
     expect(find.textContaining('alarmes exatos'), findsNothing);
+  });
+
+  testWidgets('mostra as fichas salvas na lateral', (tester) async {
+    await abrirApp(
+      tester,
+      fichas: const [Ficha(valor: 5000, cor: 0xFF1976D2, rotulo: 'Azul')],
+    );
+    expect(find.text('5.000'), findsOneWidget);
+    expect(find.text('1.000'), findsNothing);
+  });
+
+  testWidgets('abre os editores de estrutura e de fichas', (tester) async {
+    await abrirApp(tester);
+
+    await tester.tap(find.byTooltip('Estrutura de blinds'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Estrutura de blinds'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Fichas'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Fichas'), findsOneWidget);
   });
 }

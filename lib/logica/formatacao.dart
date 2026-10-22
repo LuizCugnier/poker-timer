@@ -1,3 +1,5 @@
+import '../modelos/nivel.dart';
+
 // 1000 -> "1.000"
 String formatarValor(int valor) => valor.toString().replaceAllMapped(
   RegExp(r'\B(?=(\d{3})+(?!\d))'),
@@ -16,3 +18,11 @@ String formatarTempo(Duration tempo) {
 
 String formatarBlinds(int smallBlind, int bigBlind) =>
     '${formatarValor(smallBlind)} / ${formatarValor(bigBlind)}';
+
+// "500 / 1.000 · ante 100", ou só os blinds quando não há ante.
+String descreverBlinds(Nivel nivel) {
+  final blinds = formatarBlinds(nivel.smallBlind, nivel.bigBlind);
+  return nivel.ante > 0
+      ? '$blinds · ante ${formatarValor(nivel.ante)}'
+      : blinds;
+}

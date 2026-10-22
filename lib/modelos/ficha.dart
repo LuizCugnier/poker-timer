@@ -34,3 +34,19 @@ const fichasPadrao = [
   Ficha(valor: 500, cor: 0xFF388E3C, rotulo: 'Verde'),
   Ficha(valor: 1000, cor: 0xFF212121, rotulo: 'Preta'),
 ];
+
+// Cores oferecidas no editor de fichas.
+const coresFicha = [
+  0xFFFFFFFF, // branca
+  0xFFD32F2F, // vermelha
+  0xFF388E3C, // verde
+  0xFF212121, // preta
+  0xFF1976D2, // azul
+  0xFFFBC02D, // amarela
+  0xFF7B1FA2, // roxa
+  0xFFF57C00, // laranja
+  0xFFEC407A, // rosa
+  0xFF757575, // cinza
+  0xFF6D4C41, // marrom
+  0xFF4FC3F7, // azul-claro
+];

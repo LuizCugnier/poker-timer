@@ -7,10 +7,14 @@ import '../../logica/avisos.dart';
 import '../../logica/formatacao.dart';
 import '../../logica/relogio_torneio.dart';
 import '../../modelos/ficha.dart';
+import '../estrutura/tela_estrutura.dart';
+import '../fichas/fichas_notifier.dart';
+import '../fichas/tela_fichas.dart';
 import '../../modelos/torneio.dart';
 import '../../servicos/alarmes.dart';
 import '../../servicos/sons.dart';
 import '../../tema.dart';
+import '../componentes.dart';
 import 'torneio_notifier.dart';
 
 class TelaRelogio extends ConsumerStatefulWidget {
@@ -64,32 +68,12 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
     setState(() {});
   }
 
-  Future<bool> _perguntar(
-    String pergunta, {
-    String confirmar = 'Confirmar',
-    String cancelar = 'Cancelar',
-  }) async {
-    final resposta = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Text(pergunta, style: const TextStyle(fontSize: 24)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(cancelar),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(confirmar),
-          ),
-        ],
-      ),
-    );
-    return resposta == true && mounted;
+  void _abrir(Widget tela) {
+    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => tela));
   }
 
   Future<void> _confirmar(String pergunta, VoidCallback acao) async {
-    if (await _perguntar(pergunta)) acao();
+    if (await perguntar(context, pergunta)) acao();
   }
 
   Future<void> _iniciarOuPausar() async {
@@ -100,7 +84,8 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
 
     final alarmes = ref.read(alarmesProvider);
     if (!isComeco || await alarmes.temPermissoes() || !mounted) return;
-    final permitir = await _perguntar(
+    final permitir = await perguntar(
+      context,
       'Para tocar o alarme da troca de nível com a tela apagada ou com o app '
       'em segundo plano, o Relógio de Poker precisa enviar notificações e '
       'agendar alarmes exatos.\n\n'
@@ -116,6 +101,7 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
   Widget build(BuildContext context) {
     final torneio = ref.watch(torneioProvider);
     final notifier = ref.read(torneioProvider.notifier);
+    final fichas = ref.watch(fichasProvider);
     final estado = calcularEstado(torneio, DateTime.now());
 
     return Scaffold(
@@ -151,15 +137,18 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
                       ),
                       aoAjustar: notifier.ajustarTempoRestante,
                       aoReiniciar: () => _confirmar(
-                        'Reiniciar o torneio? O relógio volta ao início do nível 1.',
+                        'Reiniciar o torneio? O relógio volta ao início do '
+                        'nível 1, com a estrutura salva.',
                         notifier.reiniciar,
                       ),
+                      aoEditarEstrutura: () => _abrir(const TelaEstrutura()),
+                      aoEditarFichas: () => _abrir(const TelaFichas()),
                     ),
                   ],
                 ),
               ),
             ),
-            const _Fichas(fichas: fichasPadrao),
+            if (fichas.isNotEmpty) _Fichas(fichas: fichas),
           ],
         ),
       ),
@@ -295,11 +284,7 @@ class _Proximo extends StatelessWidget {
     } else if (proximo.isIntervalo) {
       texto = 'Próximo: intervalo';
     } else {
-      final ante = proximo.ante > 0
-          ? ' · ante ${formatarValor(proximo.ante)}'
-          : '';
-      texto =
-          'Próximo: ${formatarBlinds(proximo.smallBlind, proximo.bigBlind)}$ante';
+      texto = 'Próximo: ${descreverBlinds(proximo)}';
     }
     return _texto(texto, Tema.tamanhoProximo, Tema.textoSecundario);
   }
@@ -313,6 +298,8 @@ class _Controles extends StatelessWidget {
     required this.aoAvancar,
     required this.aoAjustar,
     required this.aoReiniciar,
+    required this.aoEditarEstrutura,
+    required this.aoEditarFichas,
   });
 
   final bool isRodando;
@@ -321,6 +308,8 @@ class _Controles extends StatelessWidget {
   final VoidCallback aoAvancar;
   final void Function(Duration delta) aoAjustar;
   final VoidCallback aoReiniciar;
+  final VoidCallback aoEditarEstrutura;
+  final VoidCallback aoEditarFichas;
 
   @override
   Widget build(BuildContext context) {
@@ -345,6 +334,12 @@ class _Controles extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        botao(
+          Icons.format_list_numbered,
+          'Estrutura de blinds',
+          aoEditarEstrutura,
+        ),
+        botao(Icons.toll, 'Fichas', aoEditarFichas),
         botao(Icons.restart_alt, 'Reiniciar torneio', aoReiniciar),
         const SizedBox(width: 32),
         botao(Icons.skip_previous, 'Nível anterior', aoVoltar),
@@ -382,15 +377,7 @@ class _Fichas extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
-                  Container(
-                    width: Tema.diametroFicha,
-                    height: Tema.diametroFicha,
-                    decoration: BoxDecoration(
-                      color: Color(ficha.cor),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Tema.bordaFicha, width: 2),
-                    ),
-                  ),
+                  BolinhaFicha(cor: ficha.cor),
                   const SizedBox(width: 16),
                   Flexible(
                     child: _texto(

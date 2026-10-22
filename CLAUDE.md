@@ -33,6 +33,11 @@ flutter install                  # instala a release no tablet conectado
 
 Antes de adicionar qualquer dependência nova, pergunte.
 
+O build de release passa pelo R8 (encolhe e renomeia o código Java/Kotlin). Plugins que falam com
+o Dart por JNI (hoje, `shared_preferences_android` 2.5+) precisam das classes com o nome original:
+as regras ficam em `android/app/proguard-rules.pro`. Ao atualizar plugins, testar sempre também
+com `flutter run --release`; o modo debug não passa pelo R8 e não mostra esse tipo de erro.
+
 ## Estrutura
 
 ```
@@ -47,14 +52,16 @@ lib/
     relogio_torneio.dart    funções puras: dado o torneio e "agora", calcula o estado exibido
     avisos.dart             avisos a agendar e som de cada transição (funções puras)
     formatacao.dart         valores (1.000) e tempo (mm:ss)
+    validacao.dart          validadores dos formulários dos editores
   dados/
-    repositorio.dart        salvar/carregar JSON no shared_preferences
+    repositorio.dart        salvar/carregar JSON no shared_preferences (torneio, estrutura, fichas)
   servicos/
     alarmes.dart            agenda/cancela notificações das trocas de nível
     sons.dart               som de troca e de 1 minuto com o app aberto
   telas/
+    componentes.dart        confirmação, campo numérico e bolinha de ficha
     relogio/                tela principal (a da mesa)
-    estrutura/              editor de níveis
+    estrutura/              editor de níveis (uma estrutura salva, usada pelo próximo torneio)
     fichas/                 editor de fichas
 test/
   modelos_test.dart

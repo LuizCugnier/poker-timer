@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:poker_timer/dados/repositorio.dart';
 import 'package:poker_timer/logica/relogio_torneio.dart';
 import 'package:poker_timer/modelos/estrutura.dart';
+import 'package:poker_timer/modelos/ficha.dart';
+import 'package:poker_timer/modelos/nivel.dart';
 import 'package:poker_timer/modelos/torneio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -66,5 +68,56 @@ void main() {
 
     final lixo = await repositorio({'torneio': 'não é json'});
     expect(lixo.carregarTorneio(), isNull);
+  });
+
+  test('estrutura salva sobrevive a reabrir o app', () async {
+    final repo = await repositorio();
+    expect(repo.carregarEstrutura(), isNull);
+
+    await repo.salvarEstrutura(
+      const Estrutura(
+        nome: 'Turbo',
+        niveis: [
+          Nivel(smallBlind: 50, bigBlind: 100, duracao: Duration(minutes: 10)),
+          Nivel.intervalo(Duration(minutes: 5)),
+        ],
+      ),
+    );
+
+    final carregada = Repositorio(
+      await SharedPreferences.getInstance(),
+    ).carregarEstrutura()!;
+    expect(carregada.nome, 'Turbo');
+    expect(carregada.niveis, hasLength(2));
+    expect(carregada.niveis[1].isIntervalo, isTrue);
+  });
+
+  test('estrutura vazia salva é ignorada', () async {
+    final repo = await repositorio({
+      'estrutura': '{"nome": "x", "niveis": []}',
+    });
+    expect(repo.carregarEstrutura(), isNull);
+  });
+
+  test('fichas salvas sobrevivem a reabrir o app', () async {
+    final repo = await repositorio();
+    expect(repo.carregarFichas(), isNull);
+
+    await repo.salvarFichas(const [
+      Ficha(valor: 5, cor: 0xFF1976D2, rotulo: 'Azul'),
+      Ficha(valor: 25, cor: 0xFFFFFFFF, rotulo: ''),
+    ]);
+
+    final carregadas = Repositorio(
+      await SharedPreferences.getInstance(),
+    ).carregarFichas()!;
+    expect(carregadas.map((f) => f.valor), [5, 25]);
+    expect(carregadas.first.rotulo, 'Azul');
+  });
+
+  test('lista de fichas vazia é válida', () async {
+    final repo = await repositorio();
+    await repo.salvarFichas(const []);
+    expect(repo.carregarFichas(), isEmpty);
   });
 }

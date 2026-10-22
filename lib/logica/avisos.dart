@@ -51,13 +51,9 @@ List<Aviso> avisosFuturos(Torneio torneio, DateTime agora) {
   return avisos;
 }
 
-String _descrever(Nivel nivel) {
-  if (nivel.isIntervalo) return '${nivel.duracao.inMinutes} minutos de pausa';
-  final blinds = formatarBlinds(nivel.smallBlind, nivel.bigBlind);
-  return nivel.ante > 0
-      ? '$blinds · ante ${formatarValor(nivel.ante)}'
-      : blinds;
-}
+String _descrever(Nivel nivel) => nivel.isIntervalo
+    ? '${nivel.duracao.inMinutes} minutos de pausa'
+    : descreverBlinds(nivel);
 
 // Som a tocar entre dois redesenhos seguidos do relógio rodando; null se nada mudou.
 TipoAviso? somDaTransicao(EstadoRelogio antes, EstadoRelogio depois) {
