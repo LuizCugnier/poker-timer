@@ -48,6 +48,7 @@ lib/
     estrutura.dart          Estrutura(nome, niveis) + estrutura padrão de home game
     ficha.dart              Ficha(valor, cor, rotulo)
     torneio.dart            estado persistido do torneio (ver "Regra do relógio")
+    configuracao.dart       preferências do app (ex.: antecedências dos avisos)
   logica/
     relogio_torneio.dart    funções puras: dado o torneio e "agora", calcula o estado exibido
     avisos.dart             avisos a agendar e som de cada transição (funções puras)
@@ -61,6 +62,7 @@ lib/
   telas/
     componentes.dart        confirmação, campo numérico e bolinha de ficha
     relogio/                tela principal (a da mesa)
+    configuracoes/          menu de configurações (botão ⚙ no relógio); item novo = mais um ListTile
     estrutura/              editor de níveis (uma estrutura salva, usada pelo próximo torneio)
     fichas/                 editor de fichas
 test/
@@ -93,13 +95,15 @@ lá dentro), para os testes serem determinísticos. Todo comportamento dessa ló
 
 ## Alarmes
 
-- Com o app na tela, quem avisa é `servicos/sons.dart` (troca de nível e 1 minuto antes),
+- Avisos antes da troca: antecedências escolhidas em Configurações (1, 2, 3, 5, 10 min; várias
+  ou nenhuma; padrão 1 min). Um aviso só vale se for menor que a duração do nível que termina.
+- Com o app na tela, quem avisa é `servicos/sons.dart` (troca de nível e os avisos antes),
   detectado entre dois redesenhos por `somDaTransicao`. Nenhuma notificação fica agendada,
   para não aparecer banner sobre o relógio nem som duplicado.
 - Fora da tela o app não toca som (o `Timer` pode seguir rodando até o Android congelar o
   processo) e, ao voltar, ignora o que mudou enquanto estava fora.
 - Ao sair da tela (`AppLifecycleListener.onHide`): agendar uma notificação para cada troca de
-  nível futura, para o fim da estrutura e para o aviso de 1 minuto antes de cada um
+  nível futura, para o fim da estrutura e para os avisos antes de cada um
   (`zonedSchedule`, exato, em UTC). Ao voltar (`onShow`) e ao abrir o app: cancelar tudo.
 - Permissões: `POST_NOTIFICATIONS` (Android 13+) e alarmes exatos (`SCHEDULE_EXACT_ALARM`);
   pedidas ao iniciar um torneio do zero, com explicação em português, se ainda faltarem.
@@ -114,7 +118,8 @@ lá dentro), para os testes serem determinísticos. Todo comportamento dessa ló
 - Hierarquia: **tempo restante** enorme > blinds atuais (e ante, se houver) > nível atual e
   próximo nível > fichas na lateral > tempo até o próximo intervalo.
 - Últimos 60 segundos com destaque visual. Intervalo exibido como "INTERVALO", não como blinds.
-- Controles grandes e discretos: iniciar/pausar, nível anterior/próximo, ±1 min. Ações que
+- Controles grandes e discretos: configurações, reiniciar, nível anterior/próximo, ±1 min,
+  iniciar/pausar. Ações que
   alteram o torneio (pular nível, reiniciar) pedem confirmação, porque alguém pode encostar sem querer.
 - Valores formatados no padrão brasileiro com separador de milhar (1.000, 10.000), sem casas decimais.
 - Cores e tamanhos em um único arquivo de tema, para a troca de design ser fácil.

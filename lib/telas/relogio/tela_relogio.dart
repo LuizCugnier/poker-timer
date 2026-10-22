@@ -7,9 +7,9 @@ import '../../logica/avisos.dart';
 import '../../logica/formatacao.dart';
 import '../../logica/relogio_torneio.dart';
 import '../../modelos/ficha.dart';
-import '../estrutura/tela_estrutura.dart';
+import '../configuracoes/configuracao_notifier.dart';
+import '../configuracoes/tela_configuracoes.dart';
 import '../fichas/fichas_notifier.dart';
-import '../fichas/tela_fichas.dart';
 import '../../modelos/torneio.dart';
 import '../../servicos/alarmes.dart';
 import '../../servicos/sons.dart';
@@ -39,7 +39,11 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
     final alarmes = ref.read(alarmesProvider);
     alarmes.cancelar();
     _ciclo = AppLifecycleListener(
-      onHide: () => alarmes.agendar(ref.read(torneioProvider), DateTime.now()),
+      onHide: () => alarmes.agendar(
+        ref.read(torneioProvider),
+        DateTime.now(),
+        ref.read(configuracaoProvider).antecedencias,
+      ),
       onShow: () {
         alarmes.cancelar();
         // O que mudou enquanto o app estava fora já foi avisado pela notificação.
@@ -71,7 +75,11 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
       AppLifecycleState.detached,
     }.contains(WidgetsBinding.instance.lifecycleState);
     if (isNaTela && antes != null && identical(torneio, _torneioAnterior)) {
-      final som = somDaTransicao(antes, estado);
+      final som = somDaTransicao(
+        antes,
+        estado,
+        ref.read(configuracaoProvider).antecedencias,
+      );
       if (som != null) ref.read(sonsProvider).tocar(som);
     }
     _torneioAnterior = torneio;
@@ -152,8 +160,7 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
                         'nível 1, com a estrutura salva.',
                         notifier.reiniciar,
                       ),
-                      aoEditarEstrutura: () => _abrir(const TelaEstrutura()),
-                      aoEditarFichas: () => _abrir(const TelaFichas()),
+                      aoConfigurar: () => _abrir(const TelaConfiguracoes()),
                     ),
                   ],
                 ),
@@ -309,8 +316,7 @@ class _Controles extends StatelessWidget {
     required this.aoAvancar,
     required this.aoAjustar,
     required this.aoReiniciar,
-    required this.aoEditarEstrutura,
-    required this.aoEditarFichas,
+    required this.aoConfigurar,
   });
 
   final bool isRodando;
@@ -319,8 +325,7 @@ class _Controles extends StatelessWidget {
   final VoidCallback aoAvancar;
   final void Function(Duration delta) aoAjustar;
   final VoidCallback aoReiniciar;
-  final VoidCallback aoEditarEstrutura;
-  final VoidCallback aoEditarFichas;
+  final VoidCallback aoConfigurar;
 
   @override
   Widget build(BuildContext context) {
@@ -345,12 +350,7 @@ class _Controles extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        botao(
-          Icons.format_list_numbered,
-          'Estrutura de blinds',
-          aoEditarEstrutura,
-        ),
-        botao(Icons.toll, 'Fichas', aoEditarFichas),
+        botao(Icons.settings, 'Configurações', aoConfigurar),
         botao(Icons.restart_alt, 'Reiniciar torneio', aoReiniciar),
         const SizedBox(width: 32),
         botao(Icons.skip_previous, 'Nível anterior', aoVoltar),

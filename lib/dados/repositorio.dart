@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../modelos/configuracao.dart';
 import '../modelos/estrutura.dart';
 import '../modelos/ficha.dart';
 import '../modelos/torneio.dart';
@@ -21,6 +22,7 @@ class Repositorio {
   static const _chaveTorneio = 'torneio';
   static const _chaveEstrutura = 'estrutura';
   static const _chaveFichas = 'fichas';
+  static const _chaveConfiguracao = 'configuracao';
 
   // Os carregar* devolvem null se não há nada salvo ou se o JSON salvo não é mais válido.
   Torneio? carregarTorneio() {
@@ -65,6 +67,20 @@ class Repositorio {
     await _prefs.setString(
       _chaveFichas,
       jsonEncode([for (final ficha in fichas) ficha.toJson()]),
+    );
+  }
+
+  Configuracao? carregarConfiguracao() {
+    return _ler(
+      _chaveConfiguracao,
+      (json) => Configuracao.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  Future<void> salvarConfiguracao(Configuracao configuracao) async {
+    await _prefs.setString(
+      _chaveConfiguracao,
+      jsonEncode(configuracao.toJson()),
     );
   }
 

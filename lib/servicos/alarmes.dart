@@ -23,11 +23,12 @@ const _detalhesTroca = NotificationDetails(
   ),
 );
 
-const _detalhesUmMinuto = NotificationDetails(
+const _detalhesAviso = NotificationDetails(
   android: AndroidNotificationDetails(
-    'um_minuto',
-    'Aviso de 1 minuto',
-    channelDescription: 'Toca 1 minuto antes de cada troca de nível',
+    'aviso_antes',
+    'Aviso antes da troca',
+    channelDescription:
+        'Toca antes de cada troca de nível, na antecedência configurada',
     importance: Importance.max,
     priority: Priority.high,
     category: AndroidNotificationCategory.alarm,
@@ -70,14 +71,22 @@ class Alarmes {
     }
   }
 
-  Future<void> agendar(Torneio torneio, DateTime agora) async {
+  Future<void> agendar(
+    Torneio torneio,
+    DateTime agora,
+    List<Duration> antecedencias,
+  ) async {
     await cancelar();
     final exato = await _android?.canScheduleExactNotifications() ?? false;
     final modo = exato
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
 
-    for (final (id, aviso) in avisosFuturos(torneio, agora).indexed) {
+    for (final (id, aviso) in avisosFuturos(
+      torneio,
+      agora,
+      antecedencias,
+    ).indexed) {
       // zonedSchedule recusa horários no passado; o agendamento leva alguns ms.
       if (!aviso.quando.isAfter(DateTime.now())) continue;
       await _plugin.zonedSchedule(
@@ -86,7 +95,7 @@ class Alarmes {
         scheduledDate: tz.TZDateTime.from(aviso.quando, tz.UTC),
         notificationDetails: aviso.tipo == TipoAviso.troca
             ? _detalhesTroca
-            : _detalhesUmMinuto,
+            : _detalhesAviso,
         androidScheduleMode: modo,
         title: aviso.titulo,
         body: aviso.texto,

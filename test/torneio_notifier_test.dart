@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:poker_timer/dados/repositorio.dart';
 import 'package:poker_timer/modelos/estrutura.dart';
 import 'package:poker_timer/modelos/nivel.dart';
+import 'package:poker_timer/telas/configuracoes/configuracao_notifier.dart';
 import 'package:poker_timer/telas/estrutura/estrutura_notifier.dart';
 import 'package:poker_timer/telas/relogio/torneio_notifier.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -68,5 +69,22 @@ void main() {
     torneio.reiniciar();
     expect(c.read(torneioProvider).estrutura.nome, 'Turbo');
     expect(c.read(torneioProvider).isRodando, isFalse);
+  });
+
+  test('alternar aviso liga e desliga, em ordem, e salva', () async {
+    final c = await container();
+    final notifier = c.read(configuracaoProvider.notifier);
+
+    notifier.alternarAviso(10);
+    notifier.alternarAviso(5);
+    expect(c.read(configuracaoProvider).avisosMinutos, [1, 5, 10]);
+
+    notifier.alternarAviso(1);
+    expect(c.read(configuracaoProvider).avisosMinutos, [5, 10]);
+
+    final salva = Repositorio(
+      await SharedPreferences.getInstance(),
+    ).carregarConfiguracao();
+    expect(salva!.avisosMinutos, [5, 10]);
   });
 }

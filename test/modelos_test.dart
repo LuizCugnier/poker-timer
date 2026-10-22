@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:poker_timer/modelos/configuracao.dart';
 import 'package:poker_timer/modelos/estrutura.dart';
 import 'package:poker_timer/modelos/ficha.dart';
 import 'package:poker_timer/modelos/nivel.dart';
@@ -167,6 +168,24 @@ void main() {
       expect(copia.decorridoAcumulado, const Duration(minutes: 7));
       expect(copia.rodandoDesde, inicio);
       expect(copia.estrutura.nome, 'Rápida');
+    });
+  });
+
+  group('Configuracao', () {
+    test('padrão avisa 1 minuto antes', () {
+      expect(const Configuracao().antecedencias, [const Duration(minutes: 1)]);
+    });
+
+    test('ida e volta pelo JSON', () {
+      const original = Configuracao(avisosMinutos: [1, 5, 10]);
+      final copia = Configuracao.fromJson(idaEVolta(original.toJson()));
+      expect(copia.avisosMinutos, [1, 5, 10]);
+    });
+
+    test('sem avisos também é válido', () {
+      const original = Configuracao(avisosMinutos: []);
+      final copia = Configuracao.fromJson(idaEVolta(original.toJson()));
+      expect(copia.antecedencias, isEmpty);
     });
   });
 }

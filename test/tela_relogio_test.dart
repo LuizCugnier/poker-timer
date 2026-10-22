@@ -20,6 +20,7 @@ class AlarmesFalso implements Alarmes {
   int pedidosDePermissao = 0;
   int cancelamentos = 0;
   Torneio? agendado;
+  List<Duration>? agendadoCom;
 
   @override
   Future<void> inicializar() async {}
@@ -31,8 +32,14 @@ class AlarmesFalso implements Alarmes {
   Future<void> pedirPermissoes() async => pedidosDePermissao++;
 
   @override
-  Future<void> agendar(Torneio torneio, DateTime agora) async =>
-      agendado = torneio;
+  Future<void> agendar(
+    Torneio torneio,
+    DateTime agora,
+    List<Duration> antecedencias,
+  ) async {
+    agendado = torneio;
+    agendadoCom = antecedencias;
+  }
 
   @override
   Future<void> cancelar() async => cancelamentos++;
@@ -271,18 +278,43 @@ void main() {
     expect(find.text('1.000'), findsNothing);
   });
 
-  testWidgets('abre os editores de estrutura e de fichas', (tester) async {
+  testWidgets('o menu de configurações abre os editores', (tester) async {
     await abrirApp(tester);
 
-    await tester.tap(find.byTooltip('Estrutura de blinds'));
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pumpAndSettle();
+    expect(find.text('Avisar antes da troca de nível'), findsOneWidget);
+    expect(find.text('Fichas'), findsOneWidget);
+
+    await tester.tap(find.text('Estrutura de blinds'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'Estrutura de blinds'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Fichas'));
+    await tester.tap(find.text('Fichas'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'Fichas'), findsOneWidget);
+  });
+
+  testWidgets('avisos escolhidos nas configurações valem para os alarmes', (
+    tester,
+  ) async {
+    final prefs = await abrirApp(tester);
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('5 min'));
+    await tester.tap(find.text('1 min'));
+    await tester.pumpAndSettle();
+    expect(Repositorio(prefs).carregarConfiguracao()!.avisosMinutos, [5]);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Iniciar'));
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    expect(alarmes.agendadoCom, [const Duration(minutes: 5)]);
   });
 
   group('sons', () {
