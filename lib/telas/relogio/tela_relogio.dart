@@ -110,7 +110,7 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
       titulo: 'Permitir alarmes?',
       texto:
           'Para tocar o alarme da troca de nível com a tela apagada ou com o '
-          'app em segundo plano, o Relógio de Poker precisa enviar notificações '
+          'app em segundo plano, o Poker Timer precisa enviar notificações '
           'e agendar alarmes exatos.\n\n'
           'Na próxima tela, permita as notificações. Se abrir "Alarmes e '
           'lembretes", ative a opção e volte para o app.',

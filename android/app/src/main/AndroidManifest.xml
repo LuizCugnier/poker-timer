@@ -6,7 +6,7 @@
     <!-- Reagendar os alarmes se o tablet reiniciar no meio do torneio. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
-        android:label="Relógio de Poker"
+        android:label="Poker Timer"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

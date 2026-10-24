@@ -41,7 +41,7 @@ class AppRelogio extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final modo = ref.watch(configuracaoProvider.select((c) => c.modo));
     return MaterialApp(
-      title: 'Relógio de Poker',
+      title: 'Poker Timer',
       debugShowCheckedModeBanner: false,
       theme: temaRelogio(modo),
       home: const TelaRelogio(),
