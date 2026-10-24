@@ -100,10 +100,16 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
     final torneio = ref.read(torneioProvider);
     final isComeco =
         !torneio.isRodando && torneio.decorridoAcumulado == Duration.zero;
+    // No começo, o diálogo de permissões vem antes do relógio correr e do som.
+    if (isComeco) await _pedirPermissoesSeFaltarem();
+    if (!mounted) return;
     ref.read(torneioProvider.notifier).iniciarOuPausar();
+    if (isComeco) ref.read(sonsProvider).tocar(TipoAviso.troca);
+  }
 
+  Future<void> _pedirPermissoesSeFaltarem() async {
     final alarmes = ref.read(alarmesProvider);
-    if (!isComeco || await alarmes.temPermissoes() || !mounted) return;
+    if (await alarmes.temPermissoes() || !mounted) return;
     final permitir = await confirmar(
       context,
       icone: Icons.notifications_active_outlined,

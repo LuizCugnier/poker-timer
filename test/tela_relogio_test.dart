@@ -173,12 +173,15 @@ void main() {
 
     await tester.tap(find.text('INICIAR'));
     await tester.pumpAndSettle();
-    expect(find.text('PAUSAR'), findsOneWidget);
     expect(find.textContaining('alarmes exatos'), findsOneWidget);
+    expect(find.text('PAUSAR'), findsNothing);
+    expect(sons.tocados, isEmpty);
 
     await tester.tap(find.text('Permitir'));
     await tester.pumpAndSettle();
     expect(alarmes.pedidosDePermissao, 1);
+    expect(find.text('PAUSAR'), findsOneWidget);
+    expect(sons.tocados, [TipoAviso.troca]);
   });
 
   testWidgets('"Agora não" segue sem pedir permissão', (tester) async {
@@ -190,6 +193,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(alarmes.pedidosDePermissao, 0);
     expect(find.text('PAUSAR'), findsOneWidget);
+    expect(sons.tocados, [TipoAviso.troca]);
   });
 
   testWidgets('retomar um torneio em andamento não pergunta de novo', (
@@ -315,10 +319,33 @@ void main() {
       expect(sons.tocados, isEmpty);
     });
 
+    testWidgets('iniciar um torneio novo toca o som de troca', (tester) async {
+      await abrirApp(tester);
+      await tester.tap(find.text('INICIAR'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(sons.tocados, [TipoAviso.troca]);
+    });
+
+    testWidgets('retomar depois de pausar não toca som', (tester) async {
+      await abrirApp(
+        tester,
+        salvo: Torneio(
+          estrutura: Estrutura.padrao,
+          decorridoAcumulado: const Duration(minutes: 5),
+        ),
+      );
+      await tester.tap(find.text('INICIAR'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(sons.tocados, isEmpty);
+    });
+
     testWidgets('pular nível pelos controles não toca som', (tester) async {
       await abrirApp(tester);
       await tester.tap(find.text('INICIAR'));
       await tester.pump(const Duration(milliseconds: 300));
+      sons.tocados.clear();
 
       await tester.tap(find.byTooltip('Próximo nível'));
       await tester.pumpAndSettle();
