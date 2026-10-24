@@ -47,3 +47,5 @@ app.*.map.json
 docs/
 
 test/golden/
+
+CLAUDE.md
