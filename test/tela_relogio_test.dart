@@ -40,7 +40,7 @@ void main() {
     expect(find.text('NÍVEL 1'), findsOneWidget);
     expect(find.text('20:00'), findsOneWidget);
     expect(find.text('25 / 50'), findsOneWidget);
-    expect(find.text('Próximo: 50 / 100'), findsOneWidget);
+    expect(find.text('Próximo nível: 50 / 100'), findsOneWidget);
     expect(find.text('Intervalo em 1:20:00'), findsOneWidget);
     expect(find.text('1.000'), findsOneWidget);
     expect(find.text('INICIAR'), findsOneWidget);
@@ -117,7 +117,7 @@ void main() {
     expect(find.text('INTERVALO'), findsOneWidget);
     expect(find.text('08:00'), findsOneWidget);
     expect(find.textContaining('NÍVEL'), findsNothing);
-    expect(find.text('Próximo: 150 / 300'), findsOneWidget);
+    expect(find.text('Próximo nível: 150 / 300'), findsOneWidget);
   });
 
   testWidgets('últimos 60 segundos em destaque', (tester) async {
@@ -142,7 +142,7 @@ void main() {
 
     expect(find.text('500 / 1.000'), findsOneWidget);
     expect(find.text('ANTE 100'), findsOneWidget);
-    expect(find.text('Próximo: 600 / 1.200 · ante 200'), findsOneWidget);
+    expect(find.text('Próximo nível: 600 / 1.200 · ante 200'), findsOneWidget);
   });
 
   testWidgets('ao abrir, cancela alarmes pendentes da última sessão', (
@@ -287,7 +287,7 @@ void main() {
   group('premiação', () {
     testWidgets('sem premiação salva, o painel não aparece', (tester) async {
       await abrirApp(tester);
-      expect(find.text('PRÊMIOS'), findsNothing);
+      expect(find.text('PREMIAÇÃO'), findsNothing);
     });
 
     testWidgets('premiação salva aparece com os valores calculados', (
@@ -301,7 +301,7 @@ void main() {
           valores: [33, 33, 34],
         ),
       );
-      expect(find.text('PRÊMIOS'), findsOneWidget);
+      expect(find.text('PREMIAÇÃO'), findsOneWidget);
       expect(find.text('1º  413'), findsOneWidget);
       expect(find.text('2º  412'), findsOneWidget);
       expect(find.text('3º  425'), findsOneWidget);
@@ -315,30 +315,20 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    Finder campo(String rotulo) => find.descendant(
-      of: find
-          .ancestor(
-            of: find.text(rotulo.toUpperCase()),
-            matching: find.byType(Column),
-          )
-          .first,
-      matching: find.byType(TextFormField),
-    );
-
     testWidgets('o editor salva só quando a soma fecha', (tester) async {
       final prefs = await abrirApp(tester);
       await abrirEditor(tester);
       Premiacao? salva() => Repositorio(prefs).carregarPremiacao();
 
-      await tester.enterText(campo('Total da premiação'), '1000');
-      await tester.enterText(campo('2º lugar (%)'), '40');
+      await tester.enterText(campoRotulado('Total da premiação'), '1000');
+      await tester.enterText(campoRotulado('2º lugar (%)'), '40');
       await tester.pump();
       expect(find.text('Soma 110% de 100%.'), findsOneWidget);
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       expect(salva(), isNull);
 
-      await tester.enterText(campo('2º lugar (%)'), '30');
+      await tester.enterText(campoRotulado('2º lugar (%)'), '30');
       await tester.pump();
       expect(find.text('= 300'), findsOneWidget);
       await tester.tap(find.text('Salvar'));
@@ -395,7 +385,68 @@ void main() {
 
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('PRÊMIOS'), findsNothing);
+      expect(find.text('PREMIAÇÃO'), findsNothing);
+    });
+  });
+
+  group('ante igual ao small blind', () {
+    Future<void> editarPrimeiroNivel(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Configurações'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Estrutura de blinds'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('25 / 50'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<int> salvarEstrutura(
+      WidgetTester tester,
+      SharedPreferences prefs,
+    ) async {
+      await tester.tap(find.widgetWithText(FilledButton, 'Salvar').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+      await tester.pumpAndSettle();
+      return Repositorio(prefs).carregarEstrutura()!.niveis.first.ante;
+    }
+
+    TextFormField ante(WidgetTester tester) =>
+        tester.widget<TextFormField>(campoRotulado('Ante'));
+
+    testWidgets('marcada, desabilita o ante e acompanha o small blind', (
+      tester,
+    ) async {
+      final prefs = await abrirApp(tester);
+      await editarPrimeiroNivel(tester);
+      expect(ante(tester).enabled, isTrue);
+
+      await tester.tap(find.text('Igual ao small blind'));
+      await tester.pump();
+      expect(ante(tester).enabled, isFalse);
+      expect(ante(tester).controller!.text, '25');
+
+      await tester.enterText(campoRotulado('Small blind'), '40');
+      await tester.pump();
+      expect(ante(tester).controller!.text, '40');
+      expect(await salvarEstrutura(tester, prefs), 40);
+    });
+
+    testWidgets('reabre marcada se o ante é igual; desmarcada, vale o '
+        'ante digitado', (tester) async {
+      final prefs = await abrirApp(tester);
+      await editarPrimeiroNivel(tester);
+      await tester.tap(find.text('Igual ao small blind'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Salvar').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('25 / 50'));
+      await tester.pumpAndSettle();
+      expect(ante(tester).enabled, isFalse, reason: 'ante = small blind');
+
+      await tester.tap(find.text('Igual ao small blind'));
+      await tester.pump();
+      await tester.enterText(campoRotulado('Ante'), '10');
+      await tester.enterText(campoRotulado('Small blind'), '30');
+      expect(await salvarEstrutura(tester, prefs), 10);
     });
   });
 
@@ -569,7 +620,7 @@ void main() {
       tester,
     ) async {
       await abrirApp(tester);
-      final semAnte = tester.getRect(find.text('Próximo: 50 / 100'));
+      final semAnte = tester.getRect(find.text('Próximo nível: 50 / 100'));
 
       await abrirApp(
         tester,
@@ -577,9 +628,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       final comAnte = tester.getRect(
-        find.text('Próximo: 600 / 1.200 · ante 200'),
+        find.text('Próximo nível: 600 / 1.200 · ante 200'),
       );
-      expect(comAnte.top, semAnte.top);
+      // O texto com ante pode encolher (FittedBox); a linha não sai do lugar.
+      expect(comAnte.center.dy, semAnte.center.dy);
     });
 
     testWidgets('a confirmação de pular mostra o nível que vem', (

@@ -776,7 +776,7 @@ class _Proximo extends ConsumerWidget {
         : proximo == null
         ? ('Último nível', null)
         : (
-            'Próximo: ',
+            'Próximo nível: ',
             proximo.isIntervalo ? 'intervalo' : descreverBlinds(proximo),
           );
 
@@ -983,6 +983,7 @@ class _Premiacao extends ConsumerWidget {
 
     return Row(
       children: [
+        const SizedBox(width: EspacosRelogio.gapPremiacao),
         Container(width: EspacosRelogio.filete, color: cores.linha),
         const SizedBox(width: EspacosRelogio.gapPremiacao),
         SizedBox(

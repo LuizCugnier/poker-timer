@@ -129,6 +129,7 @@ class CampoRotulado extends StatelessWidget {
     this.validar,
     this.isNumero = true,
     this.autofocus = false,
+    this.isHabilitado = true,
   });
 
   final String rotulo;
@@ -136,6 +137,8 @@ class CampoRotulado extends StatelessWidget {
   final FormFieldValidator<String>? validar;
   final bool isNumero;
   final bool autofocus;
+  // Desabilitado: mostra o valor, apagado, sem deixar editar.
+  final bool isHabilitado;
 
   @override
   Widget build(BuildContext context) {
@@ -156,11 +159,12 @@ class CampoRotulado extends StatelessWidget {
         TextFormField(
           controller: controle,
           autofocus: autofocus,
+          enabled: isHabilitado,
           keyboardType: isNumero ? TextInputType.number : TextInputType.text,
           style: TextStyle(
             fontSize: TiposRelogio.campo,
             fontWeight: FontWeight.w600,
-            color: esquema.onSurface,
+            color: isHabilitado ? esquema.onSurface : esquema.onSurfaceVariant,
             fontFeatures: TiposRelogio.numeros,
           ),
           validator: validar,

@@ -83,6 +83,18 @@ Future<void> rolarAte(WidgetTester tester, Finder alvo) async {
   await tester.pumpAndSettle();
 }
 
+// Campo de texto de um CampoRotulado, achado pelo rótulo. O último é o de
+// cima (diálogo sobre a tabela, que também tem o cabeçalho "ANTE").
+Finder campoRotulado(String rotulo) => find.descendant(
+  of: find
+      .ancestor(
+        of: find.text(rotulo.toUpperCase()).last,
+        matching: find.byType(Column),
+      )
+      .first,
+  matching: find.byType(TextFormField),
+);
+
 // Abre o app inteiro numa tela de 1280×800 dp, com o que estiver "salvo".
 Future<SharedPreferences> abrirApp(
   WidgetTester tester, {

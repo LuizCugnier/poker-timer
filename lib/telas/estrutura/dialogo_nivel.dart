@@ -39,6 +39,16 @@ class _DialogoNivelState extends State<_DialogoNivel> {
   late final _minutos = TextEditingController(
     text: '${widget.inicial.duracao.inMinutes}',
   );
+  // Não fica salvo no nível: ao abrir, vem marcada se o ante já é igual ao small blind.
+  late var _isAnteIgualSmallBlind =
+      widget.inicial.ante > 0 &&
+      widget.inicial.ante == widget.inicial.smallBlind;
+
+  @override
+  void initState() {
+    super.initState();
+    _smallBlind.addListener(_copiarSmallBlind);
+  }
 
   @override
   void dispose() {
@@ -48,17 +58,32 @@ class _DialogoNivelState extends State<_DialogoNivel> {
     super.dispose();
   }
 
+  // O listener também dispara quando só o cursor muda: copia só se o texto mudou.
+  void _copiarSmallBlind() {
+    if (_isAnteIgualSmallBlind && _ante.text != _smallBlind.text) {
+      _ante.text = _smallBlind.text;
+    }
+  }
+
+  void _trocarAnteIgualSmallBlind(bool? isMarcado) {
+    setState(() => _isAnteIgualSmallBlind = isMarcado ?? false);
+    _copiarSmallBlind();
+  }
+
   void _salvar() {
     if (!_form.currentState!.validate()) return;
     final duracao = Duration(minutes: int.parse(_minutos.text.trim()));
+    final smallBlind = int.parse(_smallBlind.text.trim());
     Navigator.pop(
       context,
       widget.inicial.isIntervalo
           ? Nivel.intervalo(duracao)
           : Nivel(
-              smallBlind: int.parse(_smallBlind.text.trim()),
+              smallBlind: smallBlind,
               bigBlind: int.parse(_bigBlind.text.trim()),
-              ante: int.parse(_ante.text.trim()),
+              ante: _isAnteIgualSmallBlind
+                  ? smallBlind
+                  : int.parse(_ante.text.trim()),
               duracao: duracao,
             ),
     );
@@ -116,10 +141,24 @@ class _DialogoNivelState extends State<_DialogoNivel> {
                         spacing: EspacosRelogio.gapGrande,
                         children: [
                           Expanded(
-                            child: CampoRotulado(
-                              rotulo: 'Ante',
-                              controle: _ante,
-                              validar: validarInteiro,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CampoRotulado(
+                                  rotulo: 'Ante',
+                                  controle: _ante,
+                                  validar: validarInteiro,
+                                  isHabilitado: !_isAnteIgualSmallBlind,
+                                ),
+                                CheckboxListTile(
+                                  title: const Text('Igual ao small blind'),
+                                  value: _isAnteIgualSmallBlind,
+                                  onChanged: _trocarAnteIgualSmallBlind,
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ],
                             ),
                           ),
                           Expanded(child: duracao),

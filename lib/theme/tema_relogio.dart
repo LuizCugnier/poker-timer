@@ -279,7 +279,7 @@ class EspacosRelogio {
   // Abaixo do filete: próximo + controles à esquerda, prêmios à direita (130).
   static const double alturaParteBaixo =
       gapProximo + alturaProximo + gapControlesTopo + botaoControle;
-  static const double gapPremiacao = 28; // filete vertical -> prêmios
+  static const double gapPremiacao = 28; // dos dois lados do filete vertical
   static const double gapColunasPremio = 32;
   static const double gapLinhasPremio = 8;
   static const double alturaDivisoria = 36;
@@ -499,6 +499,10 @@ ThemeData temaRelogio(ModoRelogio modo) {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(RaiosRelogio.campo),
         borderSide: BorderSide(color: c.primaria, width: 2),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RaiosRelogio.campo),
+        borderSide: BorderSide(color: c.linha, width: 2),
       ),
     ),
     dialogTheme: DialogThemeData(
