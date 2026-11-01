@@ -230,7 +230,10 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ColunaLateral(aoIniciarOuPausar: _iniciarOuPausar),
+                _ColunaLateral(
+                  aoIniciarOuPausar: _iniciarOuPausar,
+                  aoTimeBank: _alternarTimeBank,
+                ),
                 Expanded(
                   child: _FundoPrincipal(
                     child: Column(
@@ -252,7 +255,6 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
                           aoVoltar: _voltar,
                           aoAjustar: notifier.ajustarTempoRestante,
                           aoAvancar: _avancar,
-                          aoTimeBank: _alternarTimeBank,
                         ),
                       ],
                     ),
@@ -302,9 +304,13 @@ class _FundoPrincipal extends ConsumerWidget {
 }
 
 class _ColunaLateral extends ConsumerWidget {
-  const _ColunaLateral({required this.aoIniciarOuPausar});
+  const _ColunaLateral({
+    required this.aoIniciarOuPausar,
+    required this.aoTimeBank,
+  });
 
   final VoidCallback aoIniciarOuPausar;
+  final VoidCallback aoTimeBank;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -373,6 +379,9 @@ class _ColunaLateral extends ConsumerWidget {
                     ),
                   ),
           ),
+          const SizedBox(height: EspacosRelogio.gapTimeBank),
+          _BotaoTimeBank(aoTocar: aoTimeBank),
+          const SizedBox(height: EspacosRelogio.gapTimeBank),
           _BotaoPlay(aoTocar: aoIniciarOuPausar),
         ],
       ),
@@ -780,7 +789,6 @@ class _Controles extends ConsumerWidget {
     required this.aoVoltar,
     required this.aoAjustar,
     required this.aoAvancar,
-    required this.aoTimeBank,
   });
 
   final VoidCallback aoConfigurar;
@@ -788,7 +796,6 @@ class _Controles extends ConsumerWidget {
   final VoidCallback aoVoltar;
   final void Function(Duration delta) aoAjustar;
   final VoidCallback aoAvancar;
-  final VoidCallback aoTimeBank;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -868,8 +875,6 @@ class _Controles extends ConsumerWidget {
           texto: '+1',
         ),
         botao('Próximo nível', aoAvancar, icone: Icons.skip_next_outlined),
-        const Spacer(),
-        _BotaoTimeBank(aoTocar: aoTimeBank),
       ],
     );
   }
@@ -895,13 +900,16 @@ class _BotaoTimeBank extends ConsumerWidget {
       message: 'Time bank',
       child: _BotaoDestaque(
         cores: ref.watch(coresProvider).botaoTimeBank,
-        largura: EspacosRelogio.larguraTimeBank,
-        altura: EspacosRelogio.botaoControle,
+        largura: EspacosRelogio.larguraPlay,
+        altura: EspacosRelogio.alturaTimeBank,
         raio: RaiosRelogio.controle,
         isDestaque: isContando,
         semantica: isContando ? 'Cancelar time bank' : 'Iniciar time bank',
         aoTocar: aoTocar,
-        conteudo: (frente) => Center(
+        conteudo: (frente) => Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: EspacosRelogio.paddingTimeBank,
+          ),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Row(

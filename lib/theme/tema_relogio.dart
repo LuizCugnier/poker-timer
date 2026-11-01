@@ -257,7 +257,9 @@ class EspacosRelogio {
   static const double larguraPlay = 176;
   static const double alturaPlay = 148;
   static const double alturaSelo = 52;
-  static const double larguraTimeBank = 210;
+  static const double alturaTimeBank = 64; // largura igual à do play
+  static const double gapTimeBank = 12; // fichas -> time bank -> play
+  static const double paddingTimeBank = 14; // laterais do conteúdo
 
   // Tela de referência do design. A tela principal é desenhada nesse tamanho e
   // escalada para ocupar o tablet inteiro (mesma proporção 16:10).
