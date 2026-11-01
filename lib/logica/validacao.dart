@@ -1,4 +1,7 @@
 import '../modelos/nivel.dart';
+import '../modelos/premiacao.dart';
+import 'formatacao.dart';
+import 'premiacao.dart';
 
 // Validadores no formato do TextFormField: null = válido; senão, a mensagem de erro.
 String? validarInteiro(String? texto, {int minimo = 0}) {
@@ -23,4 +26,23 @@ String? validarNiveis(List<Nivel> niveis) {
     return 'A estrutura precisa de pelo menos um nível de jogo.';
   }
   return null;
+}
+
+String? validarPremiacao(Premiacao premiacao) {
+  final Premiacao(:total, :tipo, :valores) = premiacao;
+  if (total <= 0) return 'O total precisa ser maior que zero.';
+  if (valores.isEmpty) return 'Informe pelo menos um premiado.';
+  if (valores.length > Premiacao.maximoPremiados) {
+    return 'No máximo ${Premiacao.maximoPremiados} premiados.';
+  }
+  if (valores.any((v) => v <= 0)) {
+    return 'Prêmios precisam ser maiores que zero.';
+  }
+  final soma = somar(valores);
+  return switch (tipo) {
+    TipoDivisao.porcentagem when soma != 100 => 'Soma $soma% de 100%.',
+    TipoDivisao.fixo when soma != total =>
+      'Soma ${formatarValor(soma)} de ${formatarValor(total)}.',
+    _ => null,
+  };
 }

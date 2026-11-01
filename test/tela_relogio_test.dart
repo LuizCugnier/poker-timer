@@ -6,6 +6,7 @@ import 'package:poker_timer/logica/relogio_torneio.dart';
 import 'package:poker_timer/modelos/configuracao.dart';
 import 'package:poker_timer/modelos/estrutura.dart';
 import 'package:poker_timer/modelos/ficha.dart';
+import 'package:poker_timer/modelos/premiacao.dart';
 import 'package:poker_timer/modelos/torneio.dart';
 import 'package:poker_timer/theme/tema_relogio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -264,7 +265,7 @@ void main() {
     final prefs = await abrirApp(tester);
     await tester.tap(find.byTooltip('Configurações'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('SEGUNDOS'));
+    await rolarAte(tester, find.text('SEGUNDOS'));
     Duration? salvo() => Repositorio(prefs).carregarConfiguracao()?.timeBank;
 
     await tester.enterText(find.byType(TextFormField), '5');
@@ -279,7 +280,123 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Configurações'));
     await tester.pumpAndSettle();
+    await rolarAte(tester, find.text('45'));
     expect(find.text('45'), findsOneWidget);
+  });
+
+  group('premiação', () {
+    testWidgets('sem premiação salva, o painel não aparece', (tester) async {
+      await abrirApp(tester);
+      expect(find.text('PRÊMIOS'), findsNothing);
+    });
+
+    testWidgets('premiação salva aparece com os valores calculados', (
+      tester,
+    ) async {
+      await abrirApp(
+        tester,
+        premiacao: const Premiacao(
+          total: 1250,
+          tipo: TipoDivisao.porcentagem,
+          valores: [33, 33, 34],
+        ),
+      );
+      expect(find.text('PRÊMIOS'), findsOneWidget);
+      expect(find.text('1º  413'), findsOneWidget);
+      expect(find.text('2º  412'), findsOneWidget);
+      expect(find.text('3º  425'), findsOneWidget);
+    });
+
+    Future<void> abrirEditor(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Configurações'));
+      await tester.pumpAndSettle();
+      await rolarAte(tester, find.text('Premiação'));
+      await tester.tap(find.text('Premiação'));
+      await tester.pumpAndSettle();
+    }
+
+    Finder campo(String rotulo) => find.descendant(
+      of: find
+          .ancestor(
+            of: find.text(rotulo.toUpperCase()),
+            matching: find.byType(Column),
+          )
+          .first,
+      matching: find.byType(TextFormField),
+    );
+
+    testWidgets('o editor salva só quando a soma fecha', (tester) async {
+      final prefs = await abrirApp(tester);
+      await abrirEditor(tester);
+      Premiacao? salva() => Repositorio(prefs).carregarPremiacao();
+
+      await tester.enterText(campo('Total da premiação'), '1000');
+      await tester.enterText(campo('2º lugar (%)'), '40');
+      await tester.pump();
+      expect(find.text('Soma 110% de 100%.'), findsOneWidget);
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+      expect(salva(), isNull);
+
+      await tester.enterText(campo('2º lugar (%)'), '30');
+      await tester.pump();
+      expect(find.text('= 300'), findsOneWidget);
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+      expect(salva()!.valores, [50, 30, 20]);
+      expect(salva()!.total, 1000);
+      expect(find.text('3 premiados · 1.000'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('1º  500'), findsOneWidget);
+    });
+
+    testWidgets('trocar o tipo converte os valores e mudar premiados '
+        'redimensiona a lista', (tester) async {
+      await abrirApp(
+        tester,
+        premiacao: const Premiacao(
+          total: 1000,
+          tipo: TipoDivisao.porcentagem,
+          valores: [50, 30, 20],
+        ),
+      );
+      await abrirEditor(tester);
+
+      await tester.tap(find.text('Valor fixo'));
+      await tester.pump();
+      expect(find.widgetWithText(TextFormField, '500'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, '300'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, '200'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, '2'));
+      await tester.pump();
+      expect(find.text('3º LUGAR'), findsNothing);
+      expect(find.text('Soma 800 de 1.000.'), findsOneWidget);
+    });
+
+    testWidgets('remover a premiação tira o painel da tela', (tester) async {
+      final prefs = await abrirApp(
+        tester,
+        premiacao: const Premiacao(
+          total: 1000,
+          tipo: TipoDivisao.fixo,
+          valores: [1000],
+        ),
+      );
+      await abrirEditor(tester);
+      await tester.tap(find.byTooltip('Remover premiação'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remover'));
+      await tester.pumpAndSettle();
+      expect(Repositorio(prefs).carregarPremiacao(), isNull);
+      expect(find.text('Sem premiação'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('PRÊMIOS'), findsNothing);
+    });
   });
 
   testWidgets('o chip 1/2 liga o aviso na metade e vale para os alarmes', (
@@ -288,6 +405,7 @@ void main() {
     final prefs = await abrirApp(tester);
     await tester.tap(find.byTooltip('Configurações'));
     await tester.pumpAndSettle();
+    await rolarAte(tester, find.text('1/2'));
     await tester.tap(find.text('1/2'));
     await tester.pumpAndSettle();
     expect(Repositorio(prefs).carregarConfiguracao()!.isAvisoMetade, isTrue);

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +10,7 @@ import 'package:poker_timer/logica/avisos.dart';
 import 'package:poker_timer/main.dart';
 import 'package:poker_timer/modelos/configuracao.dart';
 import 'package:poker_timer/modelos/ficha.dart';
+import 'package:poker_timer/modelos/premiacao.dart';
 import 'package:poker_timer/modelos/torneio.dart';
 import 'package:poker_timer/servicos/alarmes.dart';
 import 'package:poker_timer/servicos/sons.dart';
@@ -68,12 +70,26 @@ class AgoraFixo extends AgoraNotifier {
 late AlarmesFalso alarmes;
 late SonsFalso sons;
 
+// Rola a lista da tela até o alvo: o ListView só constrói o que está perto da
+// tela, e "construído" ainda pode estar fora dela. Cada campo de texto tem o
+// próprio Scrollable: a lista é o primeiro.
+Future<void> rolarAte(WidgetTester tester, Finder alvo) async {
+  await tester.scrollUntilVisible(
+    alvo,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.ensureVisible(alvo);
+  await tester.pumpAndSettle();
+}
+
 // Abre o app inteiro numa tela de 1280×800 dp, com o que estiver "salvo".
 Future<SharedPreferences> abrirApp(
   WidgetTester tester, {
   Torneio? salvo,
   List<Ficha>? fichas,
   Configuracao? configuracao,
+  Premiacao? premiacao,
   bool permissoes = true,
   DateTime? agora,
   double densidade = 2,
@@ -89,6 +105,7 @@ Future<SharedPreferences> abrirApp(
     if (fichas != null)
       'fichas': jsonEncode([for (final f in fichas) f.toJson()]),
     if (configuracao != null) 'configuracao': jsonEncode(configuracao.toJson()),
+    if (premiacao != null) 'premiacao': jsonEncode(premiacao.toJson()),
   });
   final prefs = await SharedPreferences.getInstance();
   await tester.pumpWidget(

@@ -10,6 +10,8 @@ import '../estrutura/estrutura_notifier.dart';
 import '../estrutura/tela_estrutura.dart';
 import '../fichas/fichas_notifier.dart';
 import '../fichas/tela_fichas.dart';
+import '../premiacao/premiacao_notifier.dart';
+import '../premiacao/tela_premiacao.dart';
 import 'configuracao_notifier.dart';
 
 // Menu de configurações (ESPECIFICACAO 5.1): cada item novo entra como mais um card.
@@ -21,6 +23,7 @@ class TelaConfiguracoes extends ConsumerWidget {
     final estrutura = ref.watch(estruturaProvider);
     final fichas = ref.watch(fichasProvider);
     final configuracao = ref.watch(configuracaoProvider);
+    final premiacao = ref.watch(premiacaoProvider);
     final notifier = ref.read(configuracaoProvider.notifier);
     final duracaoTotal = estrutura.niveis.fold(
       Duration.zero,
@@ -58,7 +61,7 @@ class TelaConfiguracoes extends ConsumerWidget {
                     ),
                   ])
                     Expanded(
-                      child: _BotaoModo(
+                      child: BotaoOpcao(
                         icone: icone,
                         rotulo: rotulo,
                         isSelecionado: configuracao.modo == modo,
@@ -105,6 +108,19 @@ class TelaConfiguracoes extends ConsumerWidget {
                       ],
                     ),
               aoTocar: () => abrir(const TelaFichas()),
+            ),
+            const SizedBox(height: EspacosRelogio.gapCards),
+            _CardNavegacao(
+              icone: Icons.emoji_events_outlined,
+              titulo: 'Premiação',
+              subtitulo: Text(
+                premiacao == null
+                    ? 'Sem premiação'
+                    : '${premiacao.valores.length} '
+                          '${premiacao.valores.length == 1 ? 'premiado' : 'premiados'} · '
+                          '${formatarValor(premiacao.total)}',
+              ),
+              aoTocar: () => abrir(const TelaPremiacao()),
             ),
             const SizedBox(height: EspacosRelogio.gapCards),
             _CardComTitulo(
@@ -270,38 +286,5 @@ class _CardNavegacao extends StatelessWidget {
         onTap: aoTocar,
       ),
     );
-  }
-}
-
-// Opção do modo de exibição: preenchida quando escolhida, contornada quando não.
-class _BotaoModo extends StatelessWidget {
-  const _BotaoModo({
-    required this.icone,
-    required this.rotulo,
-    required this.isSelecionado,
-    required this.aoTocar,
-  });
-
-  final IconData icone;
-  final String rotulo;
-  final bool isSelecionado;
-  final VoidCallback aoTocar;
-
-  @override
-  Widget build(BuildContext context) {
-    const tamanho = Size.fromHeight(EspacosRelogio.alturaSegmento);
-    return isSelecionado
-        ? FilledButton.icon(
-            style: FilledButton.styleFrom(minimumSize: tamanho),
-            onPressed: aoTocar,
-            icon: Icon(icone),
-            label: Text(rotulo),
-          )
-        : OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(minimumSize: tamanho),
-            onPressed: aoTocar,
-            icon: Icon(icone),
-            label: Text(rotulo),
-          );
   }
 }

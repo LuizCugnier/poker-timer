@@ -5,6 +5,7 @@ import 'package:poker_timer/modelos/configuracao.dart';
 import 'package:poker_timer/modelos/estrutura.dart';
 import 'package:poker_timer/modelos/ficha.dart';
 import 'package:poker_timer/modelos/nivel.dart';
+import 'package:poker_timer/modelos/premiacao.dart';
 import 'package:poker_timer/modelos/torneio.dart';
 
 Map<String, dynamic> idaEVolta(Map<String, dynamic> json) =>
@@ -216,6 +217,33 @@ void main() {
       const original = Configuracao(avisosMinutos: []);
       final copia = Configuracao.fromJson(idaEVolta(original.toJson()));
       expect(copia.antecedencias, isEmpty);
+    });
+  });
+
+  group('Premiacao', () {
+    test('ida e volta pelo JSON', () {
+      const original = Premiacao(
+        total: 1000,
+        tipo: TipoDivisao.fixo,
+        valores: [600, 400],
+        jackpot: 50,
+      );
+      final json = idaEVolta(original.toJson());
+      expect(json['tipo'], 'fixo');
+      final copia = Premiacao.fromJson(json);
+      expect(copia.total, 1000);
+      expect(copia.tipo, TipoDivisao.fixo);
+      expect(copia.valores, [600, 400]);
+      expect(copia.jackpot, 50);
+    });
+
+    test('JSON sem jackpot abre com zero', () {
+      final copia = Premiacao.fromJson({
+        'total': 1000,
+        'tipo': 'porcentagem',
+        'valores': [100],
+      });
+      expect(copia.jackpot, 0);
     });
   });
 }

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../modelos/configuracao.dart';
 import '../modelos/estrutura.dart';
 import '../modelos/ficha.dart';
+import '../modelos/premiacao.dart';
 import '../modelos/torneio.dart';
 
 // Sobrescrito no main (e nos testes) com o SharedPreferences já aberto.
@@ -23,6 +24,7 @@ class Repositorio {
   static const _chaveEstrutura = 'estrutura';
   static const _chaveFichas = 'fichas';
   static const _chaveConfiguracao = 'configuracao';
+  static const _chavePremiacao = 'premiacao';
 
   // Os carregar* devolvem null se não há nada salvo ou se o JSON salvo não é mais válido.
   Torneio? carregarTorneio() {
@@ -68,6 +70,21 @@ class Repositorio {
       _chaveFichas,
       jsonEncode([for (final ficha in fichas) ficha.toJson()]),
     );
+  }
+
+  Premiacao? carregarPremiacao() {
+    return _ler(
+      _chavePremiacao,
+      (json) => Premiacao.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  Future<void> salvarPremiacao(Premiacao premiacao) async {
+    await _prefs.setString(_chavePremiacao, jsonEncode(premiacao.toJson()));
+  }
+
+  Future<void> removerPremiacao() async {
+    await _prefs.remove(_chavePremiacao);
   }
 
   Configuracao? carregarConfiguracao() {

@@ -170,6 +170,41 @@ class CampoRotulado extends StatelessWidget {
   }
 }
 
+// Opção de uma escolha (modo de exibição, tipo de divisão): preenchida quando
+// escolhida, contornada quando não.
+class BotaoOpcao extends StatelessWidget {
+  const BotaoOpcao({
+    super.key,
+    required this.icone,
+    required this.rotulo,
+    required this.isSelecionado,
+    required this.aoTocar,
+  });
+
+  final IconData icone;
+  final String rotulo;
+  final bool isSelecionado;
+  final VoidCallback aoTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    const tamanho = Size.fromHeight(EspacosRelogio.alturaSegmento);
+    return isSelecionado
+        ? FilledButton.icon(
+            style: FilledButton.styleFrom(minimumSize: tamanho),
+            onPressed: aoTocar,
+            icon: Icon(icone),
+            label: Text(rotulo),
+          )
+        : OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(minimumSize: tamanho),
+            onPressed: aoTocar,
+            icon: Icon(icone),
+            label: Text(rotulo),
+          );
+  }
+}
+
 // Conteúdo das telas secundárias: centralizado, com no máximo 880 de largura.
 class ConteudoCentralizado extends StatelessWidget {
   const ConteudoCentralizado({super.key, required this.child});

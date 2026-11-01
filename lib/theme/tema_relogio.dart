@@ -198,6 +198,7 @@ class TiposRelogio {
   static const double ficha = 38; // w700
   static const double rotuloFichas = 18; // w600, +0.16em
   static const double playTexto = 20; // w800, +0.14em
+  static const double premio = 26; // posição w600, valor w700
   static const double icone = 30;
   static const double iconePlay = 76;
   static const double iconeSelo = 32;
@@ -260,6 +261,7 @@ class EspacosRelogio {
   static const double alturaTimeBank = 64; // largura igual à do play
   static const double gapTimeBank = 12; // fichas -> time bank -> play
   static const double paddingTimeBank = 14; // laterais do conteúdo
+  static const double larguraPremiacao = 360; // painel à direita dos controles
 
   // Tela de referência do design. A tela principal é desenhada nesse tamanho e
   // escalada para ocupar o tablet inteiro (mesma proporção 16:10).
@@ -274,6 +276,12 @@ class EspacosRelogio {
   static const double paddingSeloDireita = 24;
   static const double gapProximo = 16; // filete -> linha do próximo
   static const double gapControlesTopo = 14;
+  // Abaixo do filete: próximo + controles à esquerda, prêmios à direita (130).
+  static const double alturaParteBaixo =
+      gapProximo + alturaProximo + gapControlesTopo + botaoControle;
+  static const double gapPremiacao = 28; // filete vertical -> prêmios
+  static const double gapColunasPremio = 32;
+  static const double gapLinhasPremio = 8;
   static const double alturaDivisoria = 36;
   static const double margemDivisoria = 6;
   static const double filete = 1;
@@ -306,6 +314,7 @@ class EspacosRelogio {
   static const double gapBolinhaMini = 8;
   static const double alturaChip = 52;
   static const double larguraCampoCurto = 200; // campo de um número (time bank)
+  static const double larguraCampoPremio = 250; // 3 posições por linha
   static const double alturaSegmento = 64;
   static const double larguraDialogo = 680;
   static const double larguraDialogoFicha = 600;

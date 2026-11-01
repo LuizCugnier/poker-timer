@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../logica/avisos.dart';
 import '../../logica/formatacao.dart';
+import '../../logica/premiacao.dart';
 import '../../logica/relogio_torneio.dart';
 import '../../logica/time_bank.dart';
+import '../../logica/validacao.dart';
 import '../../modelos/nivel.dart';
 import '../../modelos/torneio.dart';
 import '../../servicos/alarmes.dart';
@@ -16,6 +18,7 @@ import '../componentes.dart';
 import '../configuracoes/configuracao_notifier.dart';
 import '../configuracoes/tela_configuracoes.dart';
 import '../fichas/fichas_notifier.dart';
+import '../premiacao/premiacao_notifier.dart';
 import 'estado_relogio_provider.dart';
 import 'time_bank_notifier.dart';
 import 'torneio_notifier.dart';
@@ -247,14 +250,45 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
                             ),
                           ),
                         ),
-                        const _Proximo(),
-                        const SizedBox(height: EspacosRelogio.gapControlesTopo),
-                        _Controles(
-                          aoConfigurar: _abrirConfiguracoes,
-                          aoReiniciar: _reiniciar,
-                          aoVoltar: _voltar,
-                          aoAjustar: notifier.ajustarTempoRestante,
-                          aoAvancar: _avancar,
+                        Container(
+                          height: EspacosRelogio.alturaParteBaixo,
+                          decoration: BoxDecoration(
+                            border: Border(
+                              top: BorderSide(
+                                color: cores.linha,
+                                width: EspacosRelogio.filete,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: EspacosRelogio.gapProximo,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      const Expanded(child: _Proximo()),
+                                      const SizedBox(
+                                        height: EspacosRelogio.gapControlesTopo,
+                                      ),
+                                      _Controles(
+                                        aoConfigurar: _abrirConfiguracoes,
+                                        aoReiniciar: _reiniciar,
+                                        aoVoltar: _voltar,
+                                        aoAjustar:
+                                            notifier.ajustarTempoRestante,
+                                        aoAvancar: _avancar,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const _Premiacao(),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -746,15 +780,8 @@ class _Proximo extends ConsumerWidget {
             proximo.isIntervalo ? 'intervalo' : descreverBlinds(proximo),
           );
 
-    return Container(
-      height: EspacosRelogio.alturaProximo + EspacosRelogio.gapProximo,
-      padding: const EdgeInsets.only(top: EspacosRelogio.gapProximo),
+    return Align(
       alignment: Alignment.centerLeft,
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: cores.linha, width: EspacosRelogio.filete),
-        ),
-      ),
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Text.rich(
@@ -934,6 +961,98 @@ class _BotaoTimeBank extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Prêmios à direita dos controles, na altura toda abaixo do filete. Colunas de 3
+// posições lado a lado (até 9); muitas posições encolhem juntas na caixa fixa.
+class _Premiacao extends ConsumerWidget {
+  const _Premiacao();
+
+  static const _porColuna = 3;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final premiacao = ref.watch(premiacaoProvider);
+    if (premiacao == null || validarPremiacao(premiacao) != null) {
+      return const SizedBox.shrink();
+    }
+    final cores = ref.watch(coresProvider);
+    final premios = calcularPremios(premiacao);
+
+    return Row(
+      children: [
+        Container(width: EspacosRelogio.filete, color: cores.linha),
+        const SizedBox(width: EspacosRelogio.gapPremiacao),
+        SizedBox(
+          width: EspacosRelogio.larguraPremiacao,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: EspacosRelogio.gapLinhasPremio,
+                children: [
+                  Text(
+                    'PREMIAÇÃO',
+                    style: TextStyle(
+                      fontSize: TiposRelogio.rotuloFichas,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: TiposRelogio.em(
+                        TiposRelogio.rotuloFichas,
+                        0.16,
+                      ),
+                      color: cores.rotuloFichas,
+                    ),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: EspacosRelogio.gapColunasPremio,
+                    children: [
+                      for (
+                        var inicio = 0;
+                        inicio < premios.length;
+                        inicio += _porColuna
+                      )
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          spacing: EspacosRelogio.gapLinhasPremio,
+                          children: [
+                            for (final (i, premio)
+                                in premios.indexed
+                                    .skip(inicio)
+                                    .take(_porColuna))
+                              Text.rich(
+                                TextSpan(
+                                  text: '${i + 1}º  ',
+                                  children: [
+                                    TextSpan(
+                                      text: formatarValor(premio),
+                                      style: TextStyle(
+                                        color: cores.texto,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                style: TiposRelogio.numero(
+                                  TiposRelogio.premio,
+                                  FontWeight.w600,
+                                  cores.textoSecundario,
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

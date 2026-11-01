@@ -4,6 +4,7 @@ import 'package:poker_timer/logica/relogio_torneio.dart';
 import 'package:poker_timer/modelos/estrutura.dart';
 import 'package:poker_timer/modelos/ficha.dart';
 import 'package:poker_timer/modelos/nivel.dart';
+import 'package:poker_timer/modelos/premiacao.dart';
 import 'package:poker_timer/modelos/torneio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -120,4 +121,27 @@ void main() {
     await repo.salvarFichas(const []);
     expect(repo.carregarFichas(), isEmpty);
   });
+
+  test(
+    'premiação salva sobrevive a reabrir o app e pode ser removida',
+    () async {
+      final repo = await repositorio();
+      expect(repo.carregarPremiacao(), isNull);
+
+      await repo.salvarPremiacao(
+        const Premiacao(
+          total: 1000,
+          tipo: TipoDivisao.porcentagem,
+          valores: [60, 40],
+        ),
+      );
+      final carregada = Repositorio(
+        await SharedPreferences.getInstance(),
+      ).carregarPremiacao()!;
+      expect(carregada.valores, [60, 40]);
+
+      await repo.removerPremiacao();
+      expect(repo.carregarPremiacao(), isNull);
+    },
+  );
 }
