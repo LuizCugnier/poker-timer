@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../logica/formatacao.dart';
+import '../../logica/validacao.dart';
 import '../../modelos/configuracao.dart';
 import '../../theme/tema_relogio.dart';
 import '../componentes.dart';
@@ -134,7 +135,68 @@ class TelaConfiguracoes extends ConsumerWidget {
                 ],
               ),
             ),
+            const SizedBox(height: EspacosRelogio.gapCards),
+            _CardComTitulo(
+              icone: Icons.timer_outlined,
+              titulo: 'Time bank',
+              child: _CampoTimeBank(inicial: configuracao.timeBank),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// Salva a cada alteração válida: sair da tela (ou o "voltar" com o teclado aberto)
+// nem sempre tira o foco do campo, então não dá para esperar o fim da edição.
+class _CampoTimeBank extends ConsumerStatefulWidget {
+  const _CampoTimeBank({required this.inicial});
+
+  final Duration inicial;
+
+  @override
+  ConsumerState<_CampoTimeBank> createState() => _CampoTimeBankState();
+}
+
+class _CampoTimeBankState extends ConsumerState<_CampoTimeBank> {
+  late final _segundos = TextEditingController(
+    text: '${widget.inicial.inSeconds}',
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _segundos.addListener(_aoMudar);
+  }
+
+  @override
+  void dispose() {
+    _segundos.dispose();
+    super.dispose();
+  }
+
+  String? _validar(String? texto) =>
+      validarInteiro(texto, minimo: Configuracao.segundosMinimoTimeBank);
+
+  void _aoMudar() {
+    if (_validar(_segundos.text) != null) return;
+    final segundos = int.parse(_segundos.text.trim());
+    // O listener também dispara quando só o cursor muda.
+    if (segundos == ref.read(configuracaoProvider).timeBank.inSeconds) return;
+    ref.read(configuracaoProvider.notifier).mudarTimeBank(segundos);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      child: SizedBox(
+        width: EspacosRelogio.larguraCampoCurto,
+        child: CampoRotulado(
+          rotulo: 'Segundos',
+          controle: _segundos,
+          validar: _validar,
         ),
       ),
     );

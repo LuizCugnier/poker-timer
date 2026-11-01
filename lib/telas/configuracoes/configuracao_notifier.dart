@@ -31,6 +31,9 @@ class ConfiguracaoNotifier extends Notifier<Configuracao> {
     if (!avisos.remove(minutos)) avisos.add(minutos);
     salvar(state.copyWith(avisosMinutos: avisos.toList()..sort()));
   }
+
+  void mudarTimeBank(int segundos) =>
+      salvar(state.copyWith(timeBank: Duration(seconds: segundos)));
 }
 
 // Cores do modo escolhido; a troca de modo reflete na hora em todas as telas.

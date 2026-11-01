@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../logica/avisos.dart';
 import '../../logica/formatacao.dart';
 import '../../logica/relogio_torneio.dart';
+import '../../logica/time_bank.dart';
 import '../../modelos/nivel.dart';
 import '../../modelos/torneio.dart';
 import '../../servicos/alarmes.dart';
@@ -16,6 +17,7 @@ import '../configuracoes/configuracao_notifier.dart';
 import '../configuracoes/tela_configuracoes.dart';
 import '../fichas/fichas_notifier.dart';
 import 'estado_relogio_provider.dart';
+import 'time_bank_notifier.dart';
 import 'torneio_notifier.dart';
 
 // Tela da mesa (ESPECIFICACAO, seções 2 e 3). Cada parte observa só o pedaço do
@@ -36,6 +38,7 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
   // Para tocar o som só quando o nível muda sozinho, não por um toque nos controles.
   Torneio? _torneioAnterior;
   EstadoRelogio? _estadoAnterior;
+  Duration? _timeBankAnterior;
 
   @override
   void initState() {
@@ -56,6 +59,7 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
         alarmes.cancelar();
         // O que mudou enquanto o app estava fora já foi avisado pela notificação.
         _estadoAnterior = null;
+        _timeBankAnterior = null;
       },
     );
     _vigiaSom = Timer.periodic(
@@ -72,9 +76,19 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
   }
 
   void _verificarSom() {
+    final agora = DateTime.now();
     final torneio = ref.read(torneioProvider);
-    final estado = calcularEstado(torneio, DateTime.now());
+    final estado = calcularEstado(torneio, agora);
     final antes = _estadoAnterior;
+    final inicioTimeBank = ref.read(timeBankProvider);
+    final timeBank = restanteTimeBank(
+      inicioTimeBank,
+      ref.read(configuracaoProvider).timeBank,
+      agora,
+    );
+    // Acabou sozinho: ainda tem início, mas o restante sumiu (cancelar zera o início).
+    final isTimeBankAcabou =
+        _timeBankAnterior != null && timeBank == null && inicioTimeBank != null;
     // Fora da tela quem avisa é a notificação; o Timer pode seguir rodando até o
     // Android congelar o processo, e tocaria o som em dobro.
     final isNaTela = !const {
@@ -92,8 +106,22 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
       );
       if (som != null) ref.read(sonsProvider).tocar(som);
     }
+    if (isNaTela && isTimeBankAcabou) {
+      ref.read(sonsProvider).tocar(TipoAviso.aviso);
+    }
     _torneioAnterior = torneio;
     _estadoAnterior = estado;
+    _timeBankAnterior = timeBank;
+  }
+
+  void _alternarTimeBank() {
+    final notifier = ref.read(timeBankProvider.notifier);
+    // Tocar enquanto conta cancela: o jogador decidiu antes do fim.
+    if (ref.read(restanteTimeBankProvider) == null) {
+      notifier.iniciar();
+    } else {
+      notifier.parar();
+    }
   }
 
   Future<void> _iniciarOuPausar() async {
@@ -224,6 +252,7 @@ class _TelaRelogioState extends ConsumerState<TelaRelogio> {
                           aoVoltar: _voltar,
                           aoAjustar: notifier.ajustarTempoRestante,
                           aoAvancar: _avancar,
+                          aoTimeBank: _alternarTimeBank,
                         ),
                       ],
                     ),
@@ -358,62 +387,97 @@ class _BotaoPlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cores = ref.watch(coresProvider);
     final isRodando = ref.watch(torneioProvider.select((t) => t.isRodando));
     final isTerminado = ref.watch(
       estadoRelogioProvider.select((e) => e.isTerminado),
     );
-    final isChamando = !isRodando && !isTerminado;
-    final fundo = isChamando ? cores.primaria : cores.superficie;
-    final borda = isChamando ? cores.primaria : cores.playBorda;
-    final frente = isChamando ? cores.naPrimaria : cores.playIcone;
-    final rotulo = isRodando && !isTerminado ? 'PAUSAR' : 'INICIAR';
+    final isPausavel = isRodando && !isTerminado;
+
+    return _BotaoDestaque(
+      cores: ref.watch(coresProvider).botaoPlay,
+      largura: EspacosRelogio.larguraPlay,
+      altura: EspacosRelogio.alturaPlay,
+      raio: RaiosRelogio.play,
+      // Pausado, fica preenchido para "chamar" o toque.
+      isDestaque: !isRodando && !isTerminado,
+      semantica: isRodando ? 'Pausar' : 'Iniciar',
+      aoTocar: isTerminado ? null : aoTocar,
+      conteudo: (frente) => Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        spacing: EspacosRelogio.gapPlay,
+        children: [
+          Icon(
+            isPausavel ? Icons.pause_outlined : Icons.play_arrow_outlined,
+            size: TiposRelogio.iconePlay,
+            color: frente,
+          ),
+          Text(
+            isPausavel ? 'PAUSAR' : 'INICIAR',
+            style: TextStyle(
+              fontSize: TiposRelogio.playTexto,
+              fontWeight: FontWeight.w800,
+              letterSpacing: TiposRelogio.em(TiposRelogio.playTexto, 0.14),
+              color: frente,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Visual do play, também usado pelo time bank: as cores de cada estado vêm do
+// tema (`CoresBotao`). `aoTocar` null = desabilitado.
+class _BotaoDestaque extends StatelessWidget {
+  const _BotaoDestaque({
+    required this.cores,
+    required this.largura,
+    required this.altura,
+    required this.raio,
+    required this.isDestaque,
+    required this.semantica,
+    required this.aoTocar,
+    required this.conteudo,
+  });
+
+  final CoresBotao cores;
+  final double largura;
+  final double altura;
+  final double raio;
+  final bool isDestaque;
+  final String semantica;
+  final VoidCallback? aoTocar;
+  // Recebe a cor da frente (ícone e texto) do estado atual.
+  final Widget Function(Color frente) conteudo;
+
+  @override
+  Widget build(BuildContext context) {
+    final fundo = isDestaque ? cores.fundoDestaque : cores.fundo;
+    final borda = isDestaque ? cores.bordaDestaque : cores.borda;
+    final frente = isDestaque ? cores.frenteDestaque : cores.frente;
+    final isHabilitado = aoTocar != null;
 
     return Semantics(
       button: true,
-      enabled: !isTerminado,
-      label: isRodando ? 'Pausar' : 'Iniciar',
+      enabled: isHabilitado,
+      label: semantica,
       child: Opacity(
-        opacity: isTerminado ? CoresRelogio.opacidadeDesabilitado : 1,
+        opacity: isHabilitado ? 1 : CoresRelogio.opacidadeDesabilitado,
         child: AnimatedContainer(
           duration: DuracoesRelogio.troca,
-          width: EspacosRelogio.larguraPlay,
-          height: EspacosRelogio.alturaPlay,
+          width: largura,
+          height: altura,
           decoration: BoxDecoration(
             color: fundo,
-            borderRadius: BorderRadius.circular(RaiosRelogio.play),
+            borderRadius: BorderRadius.circular(raio),
             border: Border.all(color: borda, width: EspacosRelogio.bordaPlay),
           ),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              borderRadius: BorderRadius.circular(RaiosRelogio.play),
-              onTap: isTerminado ? null : aoTocar,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                spacing: EspacosRelogio.gapPlay,
-                children: [
-                  Icon(
-                    isRodando && !isTerminado
-                        ? Icons.pause_outlined
-                        : Icons.play_arrow_outlined,
-                    size: TiposRelogio.iconePlay,
-                    color: frente,
-                  ),
-                  Text(
-                    rotulo,
-                    style: TextStyle(
-                      fontSize: TiposRelogio.playTexto,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: TiposRelogio.em(
-                        TiposRelogio.playTexto,
-                        0.14,
-                      ),
-                      color: frente,
-                    ),
-                  ),
-                ],
-              ),
+              borderRadius: BorderRadius.circular(raio),
+              onTap: aoTocar,
+              child: conteudo(frente),
             ),
           ),
         ),
@@ -716,6 +780,7 @@ class _Controles extends ConsumerWidget {
     required this.aoVoltar,
     required this.aoAjustar,
     required this.aoAvancar,
+    required this.aoTimeBank,
   });
 
   final VoidCallback aoConfigurar;
@@ -723,6 +788,7 @@ class _Controles extends ConsumerWidget {
   final VoidCallback aoVoltar;
   final void Function(Duration delta) aoAjustar;
   final VoidCallback aoAvancar;
+  final VoidCallback aoTimeBank;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -773,43 +839,92 @@ class _Controles extends ConsumerWidget {
       );
     }
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: EspacosRelogio.gapControles,
-        children: [
-          botao('Configurações', aoConfigurar, icone: Icons.settings_outlined),
-          botao(
-            'Reiniciar torneio',
-            aoReiniciar,
-            icone: Icons.restart_alt_outlined,
+    return Row(
+      spacing: EspacosRelogio.gapControles,
+      children: [
+        botao('Configurações', aoConfigurar, icone: Icons.settings_outlined),
+        botao(
+          'Reiniciar torneio',
+          aoReiniciar,
+          icone: Icons.restart_alt_outlined,
+        ),
+        Container(
+          width: EspacosRelogio.filete,
+          height: EspacosRelogio.alturaDivisoria,
+          margin: const EdgeInsets.symmetric(
+            horizontal: EspacosRelogio.margemDivisoria,
           ),
-          Container(
-            width: EspacosRelogio.filete,
-            height: EspacosRelogio.alturaDivisoria,
-            margin: const EdgeInsets.symmetric(
-              horizontal: EspacosRelogio.margemDivisoria,
+          color: cores.bordaControle,
+        ),
+        botao('Nível anterior', aoVoltar, icone: Icons.skip_previous_outlined),
+        botao(
+          'Menos 1 minuto',
+          () => aoAjustar(const Duration(minutes: -1)),
+          texto: '−1',
+        ),
+        botao(
+          'Mais 1 minuto',
+          () => aoAjustar(const Duration(minutes: 1)),
+          texto: '+1',
+        ),
+        botao('Próximo nível', aoAvancar, icone: Icons.skip_next_outlined),
+        const Spacer(),
+        _BotaoTimeBank(aoTocar: aoTimeBank),
+      ],
+    );
+  }
+}
+
+// Parado: discreto, "TIME BANK". Contando: preenchido em `timeBank`, com o restante.
+class _BotaoTimeBank extends ConsumerWidget {
+  const _BotaoTimeBank({required this.aoTocar});
+
+  final VoidCallback aoTocar;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Só o texto: reconstrói uma vez por segundo, não a cada 250 ms.
+    final restante = ref.watch(
+      restanteTimeBankProvider.select(
+        (r) => r == null ? null : formatarTempo(r),
+      ),
+    );
+    final isContando = restante != null;
+
+    return Tooltip(
+      message: 'Time bank',
+      child: _BotaoDestaque(
+        cores: ref.watch(coresProvider).botaoTimeBank,
+        largura: EspacosRelogio.larguraTimeBank,
+        altura: EspacosRelogio.botaoControle,
+        raio: RaiosRelogio.controle,
+        isDestaque: isContando,
+        semantica: isContando ? 'Cancelar time bank' : 'Iniciar time bank',
+        aoTocar: aoTocar,
+        conteudo: (frente) => Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              spacing: EspacosRelogio.gapPlay,
+              children: [
+                Icon(
+                  Icons.timer_outlined,
+                  size: TiposRelogio.icone,
+                  color: frente,
+                ),
+                Text(
+                  restante ?? 'TIME BANK',
+                  style: TiposRelogio.numero(
+                    TiposRelogio.playTexto,
+                    FontWeight.w800,
+                    frente,
+                    espacoEm: 0.14,
+                  ),
+                ),
+              ],
             ),
-            color: cores.bordaControle,
           ),
-          botao(
-            'Nível anterior',
-            aoVoltar,
-            icone: Icons.skip_previous_outlined,
-          ),
-          botao(
-            'Menos 1 minuto',
-            () => aoAjustar(const Duration(minutes: -1)),
-            texto: '−1',
-          ),
-          botao(
-            'Mais 1 minuto',
-            () => aoAjustar(const Duration(minutes: 1)),
-            texto: '+1',
-          ),
-          botao('Próximo nível', aoAvancar, icone: Icons.skip_next_outlined),
-        ],
+        ),
       ),
     );
   }

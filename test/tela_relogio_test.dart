@@ -258,6 +258,30 @@ void main() {
     expect(alarmes.agendadoCom, [const Duration(minutes: 5)]);
   });
 
+  testWidgets('o time bank salva ao digitar, só valores válidos', (
+    tester,
+  ) async {
+    final prefs = await abrirApp(tester);
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('SEGUNDOS'));
+    Duration? salvo() => Repositorio(prefs).carregarConfiguracao()?.timeBank;
+
+    await tester.enterText(find.byType(TextFormField), '5');
+    await tester.pump();
+    expect(salvo(), isNull);
+
+    await tester.enterText(find.byType(TextFormField), '45');
+    await tester.pump();
+    expect(salvo(), const Duration(seconds: 45));
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pumpAndSettle();
+    expect(find.text('45'), findsOneWidget);
+  });
+
   testWidgets('o chip 1/2 liga o aviso na metade e vale para os alarmes', (
     tester,
   ) async {
@@ -339,6 +363,35 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(sons.tocados, isEmpty);
+    });
+
+    testWidgets('time bank conta e tocar de novo cancela, sem som', (
+      tester,
+    ) async {
+      await abrirApp(tester);
+      await tester.tap(find.byTooltip('Time bank'));
+      await tester.pump();
+      expect(find.text('00:30'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Time bank'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('TIME BANK'), findsOneWidget);
+      expect(sons.tocados, isEmpty);
+    });
+
+    testWidgets('time bank acabando toca o aviso e volta a parado', (
+      tester,
+    ) async {
+      await abrirApp(
+        tester,
+        configuracao: const Configuracao(timeBank: Duration(seconds: 1)),
+      );
+      await tester.tap(find.byTooltip('Time bank'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await esperarATroca(tester);
+      expect(sons.tocados, [TipoAviso.aviso]);
+      expect(find.text('TIME BANK'), findsOneWidget);
     });
 
     testWidgets('pular nível pelos controles não toca som', (tester) async {

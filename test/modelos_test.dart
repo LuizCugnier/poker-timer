@@ -198,6 +198,20 @@ void main() {
       },
     );
 
+    test('time bank vai e volta pelo JSON em segundos', () {
+      const original = Configuracao(timeBank: Duration(seconds: 45));
+      final json = idaEVolta(original.toJson());
+      expect(json['timeBank'], 45);
+      expect(Configuracao.fromJson(json).timeBank, const Duration(seconds: 45));
+    });
+
+    test('configuração salva antes do time bank abre com 30 s', () {
+      final copia = Configuracao.fromJson({
+        'avisosMinutos': [1],
+      });
+      expect(copia.timeBank, const Duration(seconds: 30));
+    });
+
     test('sem avisos também é válido', () {
       const original = Configuracao(avisosMinutos: []);
       final copia = Configuracao.fromJson(idaEVolta(original.toJson()));

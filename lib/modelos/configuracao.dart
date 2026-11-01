@@ -5,6 +5,7 @@ class Configuracao {
     this.avisosMinutos = const [1],
     this.modo = ModoRelogio.altoContraste,
     this.isAvisoMetade = false,
+    this.timeBank = const Duration(seconds: 30),
   });
 
   // Quantos minutos antes de cada troca de nível toca o aviso (vazio = só na troca).
@@ -13,6 +14,11 @@ class Configuracao {
 
   // Aviso também na metade de cada nível de jogo (o chip "1/2" nas configurações).
   final bool isAvisoMetade;
+
+  // Tempo do time bank; no JSON vai em segundos.
+  final Duration timeBank;
+
+  static const segundosMinimoTimeBank = 10;
 
   static const opcoesAvisoMinutos = [1, 2, 3, 5, 10];
 
@@ -24,11 +30,13 @@ class Configuracao {
     List<int>? avisosMinutos,
     ModoRelogio? modo,
     bool? isAvisoMetade,
+    Duration? timeBank,
   }) {
     return Configuracao(
       avisosMinutos: avisosMinutos ?? this.avisosMinutos,
       modo: modo ?? this.modo,
       isAvisoMetade: isAvisoMetade ?? this.isAvisoMetade,
+      timeBank: timeBank ?? this.timeBank,
     );
   }
 
@@ -37,6 +45,7 @@ class Configuracao {
       'avisosMinutos': avisosMinutos,
       'modo': modo.name,
       'isAvisoMetade': isAvisoMetade,
+      'timeBank': timeBank.inSeconds,
     };
   }
 
@@ -50,6 +59,7 @@ class Configuracao {
           ModoRelogio.values.asNameMap()[json['modo']] ??
           ModoRelogio.altoContraste,
       isAvisoMetade: json['isAvisoMetade'] as bool? ?? false,
+      timeBank: Duration(seconds: json['timeBank'] as int? ?? 30),
     );
   }
 }

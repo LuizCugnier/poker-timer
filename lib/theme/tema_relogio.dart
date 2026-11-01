@@ -1,4 +1,4 @@
-// Tema do Relógio de Poker: dois modos (alto contraste e mesa de cassino).
+// Tema do Poker Timer: dois modos (alto contraste e mesa de cassino).
 // Fonte: Inter (empacotada em assets/fonts, declarada no pubspec como "Inter").
 // Todos os números usam algarismos tabulares: TiposRelogio.numeros.
 
@@ -32,6 +32,8 @@ class CoresRelogio {
     required this.playIcone,
     required this.bordaFicha,
     required this.rotuloFichas,
+    required this.timeBank,
+    required this.naTimeBank,
   });
 
   final Color fundo; // área principal
@@ -56,6 +58,8 @@ class CoresRelogio {
   final Color playBorda; // contorno do play rodando
   final Color playIcone; // ícone/texto do play rodando
   final Color bordaFicha; // anel externo da bolinha
+  final Color timeBank; // time bank contando
+  final Color naTimeBank; // texto/ícone sobre `timeBank`
   final Color
   rotuloFichas; // rótulo FICHAS (cinza no contraste, dourado no cassino, como nas imagens)
 
@@ -69,6 +73,20 @@ class CoresRelogio {
     0xFFF2F0EA,
   ); // ✓ sobre bolinhas escuras
   static const double opacidadeDesabilitado = 0.35;
+
+  // Botões grandes: um getter por tipo; cores próprias = outro getter.
+  CoresBotao get botaoPlay => _botao(primaria, naPrimaria);
+  CoresBotao get botaoTimeBank => _botao(timeBank, naTimeBank);
+
+  // Normal igual ao play rodando; em destaque, preenchido nas cores dadas.
+  CoresBotao _botao(Color corDestaque, Color frenteDestaque) => CoresBotao(
+    fundo: superficie,
+    borda: playBorda,
+    frente: playIcone,
+    fundoDestaque: corDestaque,
+    bordaDestaque: corDestaque,
+    frenteDestaque: frenteDestaque,
+  );
 
   static const altoContraste = CoresRelogio(
     fundo: Color(0xFF0B0B0D),
@@ -94,6 +112,8 @@ class CoresRelogio {
     playIcone: Color(0xFFBDBAB2),
     bordaFicha: Color(0xFF5C5D63),
     rotuloFichas: Color(0xFF9A978F),
+    timeBank: Color(0xFFFF6B5B),
+    naTimeBank: Color(0xFF0B0B0D),
   );
 
   static const mesaCassino = CoresRelogio(
@@ -120,6 +140,8 @@ class CoresRelogio {
     playIcone: Color(0xFFD9B86C),
     bordaFicha: Color(0xFF8C7A4C),
     rotuloFichas: Color(0xFFD9B86C),
+    timeBank: Color(0xFFC10003),
+    naTimeBank: Color(0xFFF1EBDD),
   );
 
   static CoresRelogio de(ModoRelogio modo) =>
@@ -134,6 +156,25 @@ class CoresRelogio {
   /// Cor do ✓ desenhado sobre uma bolinha (preto em fichas claras, branco nas escuras).
   static Color sobre(Color corFicha) =>
       corFicha.computeLuminance() > 0.3 ? sobreCorClara : sobreCorEscura;
+}
+
+// Cores de um botão grande (play, time bank) nos estados normal e em destaque.
+class CoresBotao {
+  const CoresBotao({
+    required this.fundo,
+    required this.borda,
+    required this.frente,
+    required this.fundoDestaque,
+    required this.bordaDestaque,
+    required this.frenteDestaque,
+  });
+
+  final Color fundo;
+  final Color borda;
+  final Color frente; // ícone e texto
+  final Color fundoDestaque;
+  final Color bordaDestaque;
+  final Color frenteDestaque;
 }
 
 class TiposRelogio {
@@ -216,6 +257,7 @@ class EspacosRelogio {
   static const double larguraPlay = 176;
   static const double alturaPlay = 148;
   static const double alturaSelo = 52;
+  static const double larguraTimeBank = 210;
 
   // Tela de referência do design. A tela principal é desenhada nesse tamanho e
   // escalada para ocupar o tablet inteiro (mesma proporção 16:10).
@@ -261,6 +303,7 @@ class EspacosRelogio {
   static const double bolinhaMini = 20;
   static const double gapBolinhaMini = 8;
   static const double alturaChip = 52;
+  static const double larguraCampoCurto = 200; // campo de um número (time bank)
   static const double alturaSegmento = 64;
   static const double larguraDialogo = 680;
   static const double larguraDialogoFicha = 600;
